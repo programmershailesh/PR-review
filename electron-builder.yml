@@ -1,0 +1,29 @@
+appId: app.verdict.desktop
+productName: Code Reviewer
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+# The review engine must stay as real files on disk, because the claude CLI reads it.
+extraResources:
+  - from: review-engine
+    to: review-engine
+  # Loaded at runtime for the window, notifications and tray.
+  - from: build
+    to: icons
+    filter:
+      - icon.png
+      - tray.png
+      - tray@2x.png
+win:
+  target: nsis
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development

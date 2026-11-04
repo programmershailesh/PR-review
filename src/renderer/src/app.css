@@ -1,0 +1,58 @@
+/* Differences from the design: one seamless window, a fluid layout, bundled fonts and live-data states. */
+:root {
+  --font: "Geist Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono Variable", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  --side-width: clamp(190px, 16vw, 250px);
+  --gutter: clamp(20px, 3vw, 56px);
+}
+/* The title bar, sidebar, content and Send bar all share one background. */
+[data-theme] { --side: var(--bg); }
+#root { height: 100%; }
+.app { grid-template-columns: var(--side-width) minmax(0, 1fr); grid-template-rows: 38px minmax(0, 1fr); background: var(--bg); }
+.titlebar { grid-column: 1 / -1; display: flex; align-items: center; padding: 0 22px; background: var(--bg); -webkit-app-region: drag; user-select: none; }
+.os-mac .titlebar { padding-left: 84px; }
+.brand { padding: 0; font-size: 15px; }
+.brand img { display: block; }
+.side { padding-top: 10px; background: var(--bg); }
+main { background: var(--bg); border: 0; border-radius: 0; }
+/* Content fills the window. Long paragraphs keep their own readable line length. */
+.col { max-width: none; margin: 0; padding: 18px var(--gutter) 56px 12px; }
+.answer p, .better-box p { max-width: 90ch; }
+.send-bar { background: var(--bg); padding: 12px var(--gutter) 14px 12px; }
+.banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 16px; border-radius: 12px; background: var(--amber-soft); margin-top: 16px; font-size: 14px; }
+.banner.error { background: var(--red-soft); }
+.banner .btn { margin-left: auto; }
+.form-error { color: var(--red); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.choice.disabled { opacity: .55; cursor: not-allowed; }
+.refresh-line { display: flex; align-items: center; gap: 12px; color: var(--text-3); font-size: 13.5px; margin-top: 6px; }
+.praise { margin-top: 10px; font-size: 14px; color: var(--text-2); }
+.answer small { display: block; }
+.col > div > .section-title:first-child { margin-top: 26px; }
+pre.code .ln { white-space: pre; }
+.source span { overflow-wrap: anywhere; }
+.issue-file { font: 12.5px var(--mono); color: var(--text-3); margin-top: 12px; overflow-wrap: anywhere; }
+
+.project-row { cursor: grab; }
+.project-row .li-main small { overflow-wrap: anywhere; }
+.project-row.dragging { opacity: .45; }
+.project-row.drop-target { box-shadow: inset 0 2px 0 var(--accent); }
+.grip { flex: none; color: var(--text-3); display: grid; place-items: center; }
+.rank { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; background: var(--card-2); color: var(--text-2); }
+.project-row:first-child .rank { background: var(--accent); color: var(--on-accent); }
+.move-btns { display: inline-flex; gap: 2px; }
+.move { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: var(--text-2); }
+.move:hover:not([disabled]) { background: var(--card-2); color: var(--text); }
+.move[disabled] { opacity: .3; cursor: default; }
+
+/* In a narrow window the sidebar becomes a row under the title bar. Each area keeps its own scrolling. */
+@media (max-width: 780px) {
+  body { overflow: hidden; }
+  .app { height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: 38px auto minmax(0, 1fr); }
+  .brand span { display: inline; }
+  .side { padding: 0 10px 8px; border: 0; }
+  main { overflow: hidden; }
+  .scroll { overflow: auto; }
+  .col { padding: 12px 16px 40px; }
+  .send-bar { position: static; padding: 10px 16px; }
+}

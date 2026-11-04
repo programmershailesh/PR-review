@@ -1,0 +1,5 @@
+{
+  "name": "code-reviewer",
+  "version": "0.1.0",
+  "description": "CTO-level, stack-aware, self-challenging pull request review engine for the Code Reviewer desktop app."
+}

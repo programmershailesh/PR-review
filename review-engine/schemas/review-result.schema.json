@@ -1,0 +1,140 @@
+{
+  "title": "Code review result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "stack", "dimensions", "requirements", "findings", "rejected", "challengeStats", "coverage", "praise", "guidelinesUsed"],
+  "properties": {
+    "verdict": { "enum": ["approve", "approve_with_comments", "needs_discussion", "request_changes"] },
+    "summary": { "type": "string" },
+    "stack": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "paths"],
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" },
+          "paths": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "performance", "security", "correctness", "stack", "requirements"],
+      "properties": {
+        "architecture": { "$ref": "#/$defs/dimension" },
+        "performance": { "$ref": "#/$defs/dimension" },
+        "security": { "$ref": "#/$defs/dimension" },
+        "correctness": { "$ref": "#/$defs/dimension" },
+        "stack": { "$ref": "#/$defs/dimension" },
+        "requirements": { "$ref": "#/$defs/dimension" }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement", "source", "status", "evidence"],
+        "properties": {
+          "requirement": { "type": "string" },
+          "source": { "type": "string" },
+          "status": { "enum": ["met", "partial", "missing", "unclear"] },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "dimension", "file", "line", "title", "problem", "impact", "betterApproach", "confidence", "challenge"],
+        "properties": {
+          "severity": { "$ref": "#/$defs/severity" },
+          "dimension": { "enum": ["architecture", "performance", "security", "correctness", "stack", "requirements"] },
+          "file": { "type": "string" },
+          "line": { "type": "integer" },
+          "endLine": { "type": "integer" },
+          "title": { "type": "string" },
+          "problem": { "type": "string" },
+          "impact": { "type": "string" },
+          "betterApproach": { "type": "string" },
+          "suggestedCode": { "type": "string" },
+          "ruleSource": { "type": "string" },
+          "confidence": { "enum": ["high", "medium"] },
+          "challenge": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["outcome", "note"],
+            "properties": {
+              "outcome": { "enum": ["survived", "downgraded"] },
+              "originalSeverity": { "$ref": "#/$defs/severity" },
+              "note": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "rejected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "reason"],
+        "properties": {
+          "title": { "type": "string" },
+          "raisedBy": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "challengeStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raised", "rejected", "downgraded", "kept"],
+      "properties": {
+        "raised": { "type": "integer" },
+        "rejected": { "type": "integer" },
+        "downgraded": { "type": "integer" },
+        "kept": { "type": "integer" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filesReviewed", "filesSkipped"],
+      "properties": {
+        "filesReviewed": { "type": "integer" },
+        "filesSkipped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "reason"],
+            "properties": {
+              "path": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "praise": { "type": "array", "items": { "type": "string" } },
+    "guidelinesUsed": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "severity": { "enum": ["blocker", "major", "minor", "nit"] },
+    "dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "note"],
+      "properties": {
+        "status": { "enum": ["pass", "watch", "block", "not_applicable"] },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}
