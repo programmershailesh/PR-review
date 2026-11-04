@@ -56,7 +56,8 @@ Lessons from real runs:
 Electron, TypeScript and React, built with electron-vite.
 
 - `src/main/app-core.ts`: all app behaviour, with Electron kept behind `CoreDeps`. `src/main/index.ts` is only Electron wiring and validated IPC.
-- `src/main/providers/`: one `GitProvider` per service. Only GitHub exists so far. Accounts use access tokens, encrypted with Electron `safeStorage`. Assigned PRs are found by polling, since a desktop app can't receive webhooks.
+- `src/main/providers/`: one `GitProvider` per service: GitHub and GitLab so far, Bitbucket still to come. Accounts use access tokens, encrypted with Electron `safeStorage`. Assigned PRs are found by polling, since a desktop app can't receive webhooks.
+- `src/main/providers/gitlab.ts` posts through draft notes, because GitLab has no single review call. Publishing sends all of the user's drafts, so it refuses if they have their own. It also escapes lines like `/merge` in every note, because GitLab runs them as commands under the user's account. A published review can still leave failed comments behind as drafts, and those get posted as a plain note.
 - `src/shared/priority.ts`: which projects are on, and the queue order. A review started by hand runs first, then project priority, then the longest-waiting PR. A running review is never interrupted for a higher-priority one, because that would waste subscription usage.
 - Closing the window during a review: `window-all-closed` in `src/main/index.ts` keeps the app alive with a tray icon, finishes the queue without looking for new work, notifies, then exits. With nothing running, closing just quits.
 - `src/main/store.ts`: a JSON file in the user data folder. SQLite isn't needed at this data size, and avoiding it means no native module to build per platform.

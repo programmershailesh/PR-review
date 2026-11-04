@@ -14,6 +14,8 @@ export interface DiffHunk {
 
 export interface DiffFile {
   path: string;
+  /** The path before this change, when the diff names one. Differs from path on a rename. */
+  oldPath?: string;
   hunks: DiffHunk[];
   binary: boolean;
 }
@@ -50,7 +52,9 @@ export function parseDiff(patch: string): DiffFile[] {
     }
     if (!file) continue;
     if (!hunk) {
-      if (line.startsWith("+++ ") && !line.startsWith("+++ /dev/null")) {
+      if (line.startsWith("--- ") && !line.startsWith("--- /dev/null")) {
+        file.oldPath = parsePath(line.slice(4));
+      } else if (line.startsWith("+++ ") && !line.startsWith("+++ /dev/null")) {
         file.path = parsePath(line.slice(4));
       } else if (line.startsWith("Binary files ")) {
         file.binary = true;
@@ -75,13 +79,24 @@ export function parseDiff(patch: string): DiffFile[] {
   return files;
 }
 
-/** Providers only accept inline comments on lines that appear in the diff. */
-export function commentableLines(files: DiffFile[]): Map<string, Set<number>> {
-  const map = new Map<string, Set<number>>();
+/** Where a line of the new file sits in the old one. oldLine is absent on an added line. */
+export interface LineAnchor {
+  oldPath: string;
+  oldLine?: number;
+}
+
+/** Providers only accept inline comments on lines that appear in the diff. Keyed by path, then new line number. */
+export function commentableLines(files: DiffFile[]): Map<string, Map<number, LineAnchor>> {
+  const map = new Map<string, Map<number, LineAnchor>>();
   for (const f of files) {
-    const set = new Set<number>();
-    for (const h of f.hunks) for (const l of h.lines) if (l.newLine !== undefined) set.add(l.newLine);
-    map.set(f.path, set);
+    const lines = new Map<number, LineAnchor>();
+    for (const h of f.hunks) {
+      for (const l of h.lines) {
+        if (l.newLine === undefined) continue;
+        lines.set(l.newLine, { oldPath: f.oldPath ?? f.path, ...(l.oldLine === undefined ? {} : { oldLine: l.oldLine }) });
+      }
+    }
+    map.set(f.path, lines);
   }
   return map;
 }

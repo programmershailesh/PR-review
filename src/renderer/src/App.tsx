@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AppState, GuidelineScope } from "../../shared/types";
 import logo from "../../../build/icon.svg";
-import { Dialog, api, errorText, shortRepo } from "./ui";
+import { Dialog, api, errorText, prNumber, shortRepo } from "./ui";
 import { ConnectDialog } from "./views/ConnectDialog";
 import { ProjectsView } from "./views/ProjectList";
 import { ProjectView } from "./views/Projects";
@@ -184,7 +184,7 @@ function SearchDialog({ ctx, onClose, onKeys }: { ctx: Ctx; onClose: () => void;
   const items = useMemo(() => {
     const repos = [...new Set(state.prs.map((p) => p.repo))];
     return [
-      ...state.prs.map((p) => ({ label: p.title, hint: `${shortRepo(p.repo)} #${p.number}`, run: () => go({ view: "review", prKey: p.key }) })),
+      ...state.prs.map((p) => ({ label: p.title, hint: `${shortRepo(p.repo)} ${prNumber(p)}`, run: () => go({ view: "review", prKey: p.key }) })),
       ...repos.map((r) => ({ label: `Add guidelines to ${shortRepo(r)}`, hint: "Project", run: () => go({ view: "project", scope: r }) })),
       { label: "Reviews", hint: "Go to", run: () => go({ view: "reviews" }) },
       { label: "Projects", hint: "Go to", run: () => go({ view: "projects" }) },

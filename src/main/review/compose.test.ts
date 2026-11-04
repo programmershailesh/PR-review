@@ -23,9 +23,14 @@ describe("composeReview", () => {
   it("posts findings on diff lines as inline comments", () => {
     const out = composeReview(result([finding({ line: 2 })]), {}, DIFF, "comment");
     expect(out.comments).toHaveLength(1);
-    expect(out.comments[0]).toMatchObject({ path: "a.ts", line: 2 });
+    expect(out.comments[0]).toMatchObject({ path: "a.ts", line: 2, oldPath: "a.ts" });
+    expect(out.comments[0]).not.toHaveProperty("oldLine");
     expect(out.comments[0]!.body).toContain("Should fix");
     expect(out.body).toBe("Summary.");
+  });
+  it("gives unchanged lines their old line number", () => {
+    const out = composeReview(result([finding({ line: 1 })]), {}, DIFF, "comment");
+    expect(out.comments[0]).toMatchObject({ line: 1, oldLine: 1 });
   });
   it("moves findings outside the diff into the summary, so the post can't be rejected", () => {
     const out = composeReview(result([finding({ line: 99 }), finding({ file: "other.ts" })]), {}, DIFF, "comment");

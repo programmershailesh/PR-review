@@ -8,6 +8,7 @@ import { findClaude } from "./claude/find";
 import { runReview } from "./claude/runner";
 import { convertDocument, fileSize, validateDocument } from "./guidelines/convert";
 import { GitHubProvider } from "./providers/github";
+import { GitLabProvider } from "./providers/gitlab";
 import { type GitProvider } from "./providers/types";
 import { prepareBundle, removeBundle } from "./review/bundle";
 import { composeReview } from "./review/compose";
@@ -108,12 +109,13 @@ export class AppCore {
   private makeProvider(provider: ProviderId, host: string, token: string): GitProvider {
     if (this.deps.providerFactory) return this.deps.providerFactory(provider, host, token);
     if (provider === "github") return new GitHubProvider(host, token);
-    throw new Error("Only GitHub is available so far. GitLab and Bitbucket are coming next.");
+    if (provider === "gitlab") return new GitLabProvider(host, token);
+    throw new Error("Only GitHub and GitLab are available so far. Bitbucket is coming next.");
   }
 
   async connectAccount(input: { provider: ProviderId; host: string; token: string }): Promise<void> {
     const host = input.host.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
-    if (!/^[a-z0-9.-]+(:\d+)?$/.test(host)) throw new Error("Enter a server address such as github.com.");
+    if (!/^[a-z0-9.-]+(:\d+)?$/.test(host)) throw new Error("Enter a server address such as gitlab.com.");
     const token = input.token.trim();
     if (!token) throw new Error("Enter your access token.");
     const username = await this.makeProvider(input.provider, host, token).verify();

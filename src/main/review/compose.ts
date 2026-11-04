@@ -33,7 +33,8 @@ export function composeReview(
     const draft = drafts[i];
     if (draft && !draft.included) return;
     const body = draft?.text?.trim() || defaultComment(f);
-    if (allowed.get(f.file)?.has(f.line)) comments.push({ path: f.file, line: f.line, body });
+    const anchor = allowed.get(f.file)?.get(f.line);
+    if (anchor) comments.push({ path: f.file, line: f.line, body, ...anchor });
     else outside.push(`**${f.file}, line ${f.line}**\n\n${body}`);
   });
   const body = [result.summary, ...outside].join("\n\n---\n\n");

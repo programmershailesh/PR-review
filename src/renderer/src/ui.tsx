@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import type { Severity, Verdict, CodeReviewerApi } from "../../shared/types";
+import type { PullRequest, Severity, Verdict, CodeReviewerApi } from "../../shared/types";
 
 declare global {
   interface Window {
@@ -24,6 +24,8 @@ export const SEV: Record<Severity, string> = { blocker: "Must fix", major: "Shou
 
 export const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 export const shortRepo = (repo: string) => (repo === "*" ? "All projects" : repo.split("/").pop() ?? repo);
+/** How the service itself writes this PR's number: #12 on GitHub, !12 on GitLab. */
+export const prNumber = (pr: Pick<PullRequest, "provider" | "number">) => `${pr.provider === "gitlab" ? "!" : "#"}${pr.number}`;
 
 export function timeAgo(iso: string): string {
   const mins = Math.round((Date.now() - Date.parse(iso)) / 60000);
@@ -84,7 +86,11 @@ export function Dialog({ onClose, children }: { onClose: () => void; children: R
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) {
+      d.showModal();
+      // showModal focuses the first control, which isn't always the one to fill in first.
+      d.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+    }
   }, []);
   return (
     <dialog

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { projectEnabled, queueOrder, sortProjects } from "../../../shared/priority";
 import type { PullRequest, ReviewRecord } from "../../../shared/types";
 import type { Ctx } from "../App";
-import { IconCheck, IconCross, TONE, VerdictIcon, WORD, api, plural, shortRepo, timeAgo } from "../ui";
+import { IconCheck, IconCross, TONE, VerdictIcon, WORD, api, plural, prNumber, shortRepo, timeAgo } from "../ui";
 
 function Outcome({ review, off, position }: { review?: ReviewRecord; off: boolean; position: number }) {
   if (!review) return <span className="outcome c-muted">{off ? "Project is off" : "Not reviewed"}</span>;
@@ -33,7 +33,7 @@ export function ReviewsView({ ctx }: { ctx: Ctx }) {
         <ClaudeBanner ctx={ctx} />
         <div className="empty" style={{ marginTop: 24 }}>
           <b>Connect an account to get started</b>
-          Anything assigned to you on GitHub will show up here and get reviewed automatically.
+          Anything assigned to you on GitHub or GitLab will show up here and get reviewed automatically.
           <br />
           <button className="btn primary" onClick={openConnect}>Connect an account</button>
         </div>
@@ -54,7 +54,7 @@ export function ReviewsView({ ctx }: { ctx: Ctx }) {
     <button className="row" key={p.key} onClick={() => go({ view: "review", prKey: p.key })}>
       <span className="row-main">
         <span className="row-title" style={{ display: "block" }}>{p.title}</span>
-        <span className="row-meta" style={{ display: "block" }}>{shortRepo(p.repo)} #{p.number} · {p.author} · {timeAgo(p.updatedAt)}</span>
+        <span className="row-meta" style={{ display: "block" }}>{shortRepo(p.repo)} {prNumber(p)} · {p.author} · {timeAgo(p.updatedAt)}</span>
       </span>
       <span className="row-end"><Outcome review={state.reviews[p.key]} off={isOff(p)} position={queue.indexOf(p) + 1} /></span>
     </button>

@@ -1,5 +1,7 @@
 export type ProviderId = "github" | "gitlab" | "bitbucket";
 
+export const PROVIDER_NAME: Record<ProviderId, string> = { github: "GitHub", gitlab: "GitLab", bitbucket: "Bitbucket" };
+
 export interface Account {
   id: string;
   provider: ProviderId;

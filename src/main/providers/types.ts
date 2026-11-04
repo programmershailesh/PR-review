@@ -10,6 +10,10 @@ export interface InlineComment {
   path: string;
   line: number;
   body: string;
+  /** The path before a rename. GitLab needs it to place a comment. */
+  oldPath?: string;
+  /** The line's number before this change, when it's an unchanged line. GitLab needs it to place a comment. */
+  oldLine?: number;
 }
 
 export interface ReviewSubmission {
@@ -18,7 +22,7 @@ export interface ReviewSubmission {
   comments: InlineComment[];
 }
 
-/** One implementation per Git service. Add GitLab and Bitbucket behind this interface. */
+/** One implementation per Git service. Add Bitbucket behind this interface. */
 export interface GitProvider {
   /** Confirms the token works and returns the username it belongs to. */
   verify(): Promise<string>;

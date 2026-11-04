@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseDiff, type DiffFile } from "../../../shared/diff";
 import { projectEnabled } from "../../../shared/priority";
-import type { Dimension, DimensionStatus, Finding, PullRequest, RequirementStatus, ReviewRecord, ReviewResult, RunProgress, SendEvent } from "../../../shared/types";
+import { PROVIDER_NAME, type Dimension, type DimensionStatus, type Finding, type PullRequest, type RequirementStatus, type ReviewRecord, type ReviewResult, type RunProgress, type SendEvent } from "../../../shared/types";
 import type { Ctx } from "../App";
 import { ClaudeBanner } from "./Reviews";
-import { Dialog, Highlight, IconAsk, IconCheck, IconChevron, IconCross, IconDoc, IconWarn, SEV, Switch, TONE, VerdictIcon, WORD, api, errorText, plural, shortRepo, timeAgo } from "../ui";
+import { Dialog, Highlight, IconAsk, IconCheck, IconChevron, IconCross, IconDoc, IconWarn, SEV, Switch, TONE, VerdictIcon, WORD, api, errorText, plural, prNumber, shortRepo, timeAgo } from "../ui";
 
 const AREA: Record<Dimension, [string, string]> = {
   architecture: ["Architecture", "Design and how it holds up as you grow"],
@@ -81,11 +81,11 @@ export function ReviewView({ ctx, prKey }: { ctx: Ctx; prKey: string }) {
       <button className="back" onClick={() => go({ view: "reviews" })}>← Reviews</button>
       <h1 className="rv-title">{pr.title}</h1>
       <div className="rv-meta">
-        <span>{shortRepo(pr.repo)} #{pr.number}</span>
+        <span>{shortRepo(pr.repo)} {prNumber(pr)}</span>
         <span>{pr.author}</span>
         <span>{timeAgo(pr.updatedAt)}</span>
         <span className="rv-links">
-          <button className="link" onClick={() => attempt(() => api().openExternal(pr.url))}>Open on GitHub</button>
+          <button className="link" onClick={() => attempt(() => api().openExternal(pr.url))}>Open on {PROVIDER_NAME[pr.provider]}</button>
           {review?.state !== "running" && review?.state !== "queued" && (
             <button className="link" onClick={() => attempt(() => api().startReview(prKey))}>{finished ? "Review again" : "Start review"}</button>
           )}
@@ -120,7 +120,7 @@ export function ReviewView({ ctx, prKey }: { ctx: Ctx; prKey: string }) {
             <div className="answer-word"><VerdictIcon verdict={result.verdict} s={20} />{WORD[result.verdict]}</div>
             <p>{result.summary}</p>
             {review.state === "sent" && review.sentAs ? (
-              <small>You sent this review to GitHub as “{SEND[review.sentAs][0]}”.</small>
+              <small>You sent this review to {PROVIDER_NAME[pr.provider]} as “{SEND[review.sentAs][0]}”.</small>
             ) : (
               <small>
                 {plural(result.findings.length, "issue")} confirmed. {plural(rejectedCount, "false alarm")} removed before you saw {rejectedCount === 1 ? "it" : "them"}.{" "}
@@ -136,14 +136,14 @@ export function ReviewView({ ctx, prKey }: { ctx: Ctx; prKey: string }) {
           <div className="tab-body">
             {tab === "issues" && <IssuesTab pr={pr} review={review} result={result} diff={diff} open={open} setOpen={setOpen} ctx={ctx} setInclude={setInclude} />}
             {tab === "reqs" && <RequirementsTab ctx={ctx} pr={pr} result={result} />}
-            {tab === "code" && <CodeTab result={result} diff={diff} onJump={(i) => { setTab("issues"); setOpen(i); }} />}
+            {tab === "code" && <CodeTab result={result} diff={diff} service={PROVIDER_NAME[pr.provider]} onJump={(i) => { setTab("issues"); setOpen(i); }} />}
             {tab === "checked" && <CheckedTab result={result} />}
           </div>
         </div>
       </div>
       {review.state === "ready" && (
         <div className="send-bar">
-          <span>{kept ? `${plural(kept, "comment")} will be sent on this pull request.` : "Nothing is sent until you choose."}</span>
+          <span>{kept ? `${plural(kept, "comment")} will be sent on this ${pr.provider === "gitlab" ? "merge request" : "pull request"}.` : "Nothing is sent until you choose."}</span>
           <button className="btn primary" onClick={() => setSending(true)}>Send review…</button>
         </div>
       )}
@@ -156,7 +156,7 @@ export function ReviewView({ ctx, prKey }: { ctx: Ctx; prKey: string }) {
           onSent={() => {
             setSending(false);
             const next = state.prs.find((p) => p.key !== prKey && state.reviews[p.key]?.state === "ready");
-            toast("Review sent to GitHub.", next ? { label: "Next review", run: () => go({ view: "review", prKey: next.key }) } : undefined);
+            toast(`Review sent to ${PROVIDER_NAME[pr.provider]}.`, next ? { label: "Next review", run: () => go({ view: "review", prKey: next.key }) } : undefined);
           }}
         />
       )}
@@ -408,7 +408,7 @@ function RequirementsTab({ ctx, pr, result }: { ctx: Ctx; pr: PullRequest; resul
   );
 }
 
-function CodeTab({ result, diff, onJump }: { result: ReviewResult; diff: DiffFile[]; onJump: (i: number) => void }) {
+function CodeTab({ result, diff, service, onJump }: { result: ReviewResult; diff: DiffFile[]; service: string; onJump: (i: number) => void }) {
   if (!diff.length) return <div className="empty"><b>No code changes to show</b>The saved changes for this review aren't available.</div>;
   let budget = MAX_DIFF_LINES;
   let truncated = false;
@@ -455,7 +455,7 @@ function CodeTab({ result, diff, onJump }: { result: ReviewResult; diff: DiffFil
           </div>
         );
       })}
-      {truncated && <p className="note">This change is very large, so only part of it is shown here. Open it on GitHub to see all of it.</p>}
+      {truncated && <p className="note">This change is very large, so only part of it is shown here. Open it on {service} to see all of it.</p>}
     </>
   );
 }
@@ -531,7 +531,7 @@ function SendDialog({ pr, result, kept, onClose, onSent }: { pr: PullRequest; re
     <Dialog onClose={onClose}>
       <div className="d-head">
         <h2>Send your review</h2>
-        <p>To {shortRepo(pr.repo)} #{pr.number} on GitHub, under your name.</p>
+        <p>To {shortRepo(pr.repo)} {prNumber(pr)} on {PROVIDER_NAME[pr.provider]}, under your name.</p>
       </div>
       <div className="d-body">
         {(Object.keys(SEND) as SendEvent[]).map((k) => (

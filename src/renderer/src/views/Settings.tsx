@@ -1,12 +1,12 @@
-import type { Settings } from "../../../shared/types";
+import { PROVIDER_NAME, type Settings } from "../../../shared/types";
 import type { Ctx } from "../App";
 import { Switch, api } from "../ui";
 
-function Segmented<T extends string>({ value, items, onChange, label }: { value: T; items: [T, string][]; onChange: (v: T) => void; label: string }) {
+export function Segmented<T extends string>({ value, items, onChange, label }: { value: T; items: [T, string][]; onChange: (v: T) => void; label: string }) {
   return (
     <div className="seg" role="group" aria-label={label}>
       {items.map(([v, l]) => (
-        <button key={v} aria-pressed={value === v} onClick={() => onChange(v)}>{l}</button>
+        <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)}>{l}</button>
       ))}
     </div>
   );
@@ -48,7 +48,7 @@ export function SettingsView({ ctx, onKeys }: { ctx: Ctx; onKeys: () => void }) 
         {accounts.map((a) => (
           <div className="li center" key={a.id}>
             <div className="li-main">
-              <b>GitHub</b>
+              <b>{PROVIDER_NAME[a.provider]}</b>
               <small>{a.host} · {a.username}</small>
               {a.error && <small className="c-red">{a.error}</small>}
             </div>
@@ -60,7 +60,7 @@ export function SettingsView({ ctx, onKeys }: { ctx: Ctx; onKeys: () => void }) 
         <button className="li li-btn center" onClick={openConnect}>
           <div className="li-main">
             <b>{accounts.length ? "Add another account" : "Connect an account"}</b>
-            <small>GitHub or GitHub Enterprise. GitLab and Bitbucket are coming next.</small>
+            <small>GitHub or GitLab, including self-hosted servers. Bitbucket is coming next.</small>
           </div>
           <span className="c-muted">+</span>
         </button>
