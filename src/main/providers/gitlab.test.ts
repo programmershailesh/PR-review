@@ -287,3 +287,22 @@ describe("GitLabProvider sending", () => {
     });
   });
 });
+
+describe("GitLabProvider.getPullRequest", () => {
+  const one = (over: object) => (async () => json(mr(5, over))) as unknown as typeof fetch;
+  it("reports open, merged and closed", async () => {
+    const status = async (state: string) => (await new GitLabProvider("gitlab.com", "t", one({ state })).getPullRequest("group/sub/proj", 5, "a")).status;
+    expect(await status("opened")).toBe("open");
+    expect(await status("merged")).toBe("merged");
+    expect(await status("closed")).toBe("closed");
+    expect(await status("locked")).toBe("closed");
+  });
+  it("uses the diff head when the merge request has no sha", async () => {
+    const p = await new GitLabProvider("gitlab.com", "t", one({ state: "merged", sha: null, diff_refs: { head_sha: "dh" } })).getPullRequest("group/sub/proj", 5, "a");
+    expect(p.headSha).toBe("dh");
+    expect(p.key).toBe("a:group/sub/proj!5");
+  });
+  it("says so when GitLab hasn't prepared it", async () => {
+    await expect(new GitLabProvider("gitlab.com", "t", one({ sha: null, diff_refs: null })).getPullRequest("g/p", 5, "a")).rejects.toThrow(/still preparing/);
+  });
+});

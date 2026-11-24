@@ -14,9 +14,10 @@ Cross-platform desktop app. PRs and MRs assigned to the user on GitHub, GitLab o
 
 - `design/index.html`: interactive UI design. Open it directly in a browser. It uses sample data.
 - `review-engine/`: Claude Code plugin with the review agents and skills, shipped inside the app.
-  - `agents/`: `cto-reviewer` (lead and judge), five specialists plus `requirements-reviewer`, and `challenger`.
+  - `agents/`: `cto-reviewer` (lead and judge), five specialists plus `requirements-reviewer`, `compliance-reviewer` (runs only when standards are selected), and `challenger`.
   - `skills/`: `review-pr` (the workflow), `project-context`, `detect-stack` with per-stack references.
   - `schemas/review-result.schema.json`: the contract between the engine and the UI.
+  - `compliance/`: `catalog.json` lists every standard (`available` ones can be selected, `planned` ones are only shown as coming), and `<id>.md` is each available standard's checklist.
 
 ## Review run
 
@@ -33,6 +34,9 @@ bundle/
     index.json         file, title, level (must | recommended), scope (project | all)
     *.md               converted text with <!-- page N --> markers
     rules.md           quick rules
+  compliance/          checklists for the standards selected for this project and for all projects
+    index.json         id, name, version, level (must | recommended), file
+    <id>.md            copied from review-engine/compliance
 ```
 
 Uploaded guideline documents accept PDF, DOCX, Markdown and text up to 25 MB. The app converts them to text when they are added, keeps them only on this computer, and copies the enabled ones into each bundle. A PDF with no text layer, such as a scan, must show a clear error rather than being silently ignored.
@@ -46,6 +50,17 @@ Why it is built this way:
 - `--setting-sources project` keeps the user's own plugins and hooks out of reviews, and the login still works.
 - Code is exported with `core.symlinks=false` and no `.git` folder, so a PR's symlink can't point the reviewer at private files.
 - Run reviews one at a time, because subscription limits are shared with the user's other Claude Code use. Failed reviews are not retried automatically.
+
+Compliance standards:
+- Code review can only check the code-level side of a standard, so the app never says a project is compliant. The UI says so wherever standards appear.
+- Each check in a checklist is a heading `### [<control ID>] <statement>`, followed by "Look for:" and "Decided from code:". The app parses these headings (`src/main/compliance/catalog.ts`), and `verifyControls` in `src/main/review/sources.ts` removes any control a review cites that isn't a heading in a selected checklist. A control ID must be unique across all checklists.
+- Checklists are written in our own words and cite control IDs only, because ISO, the AICPA and the PCI SSC own their standards' wording. Every ID must be checked against the official source before it ships, and each standard records its version, source and `lastReviewed` date in `catalog.json`.
+- To add a planned standard: write `<id>.md` in the same format, fill in its catalogue details, and set `status` to `available`. `catalog.test.ts` checks the format.
+
+Review by link:
+- `addByLink` in `app-core.ts` accepts any PR or MR the user's connected account can see, including merged and closed ones. The account for the link's host decides the service.
+- PRs added by link carry `addedByLink` and are never removed by polling, because nobody is assigned a merged PR. The user removes them. "Review again" fetches the latest version first.
+- Merged and closed PRs can only get comments. The UI offers only "Comment only", `sendReview` refuses anything else, and the verdict wording changes ("Needs a follow-up fix" instead of "Don't merge yet").
 
 Lessons from real runs:
 - The CLI's schema validator rejects a `$schema` line in `--json-schema`.

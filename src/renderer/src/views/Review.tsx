@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseDiff, type DiffFile } from "../../../shared/diff";
 import { projectEnabled } from "../../../shared/priority";
-import { PROVIDER_NAME, type Dimension, type DimensionStatus, type Finding, type PullRequest, type RequirementStatus, type ReviewRecord, type ReviewResult, type RunProgress, type SendEvent } from "../../../shared/types";
+import { PROVIDER_NAME, type ComplianceStandard, type Dimension, type DimensionStatus, type Finding, type PullRequest, type RequirementStatus, type ReviewRecord, type ReviewResult, type RunProgress, type SendEvent } from "../../../shared/types";
 import type { Ctx } from "../App";
 import { ClaudeBanner } from "./Reviews";
-import { Dialog, Highlight, IconAsk, IconCheck, IconChevron, IconCross, IconDoc, IconWarn, SEV, Switch, TONE, VerdictIcon, WORD, api, errorText, plural, prNumber, shortRepo, timeAgo } from "../ui";
+import { COMPLIANCE_STATUS, Dialog, Highlight, IconAsk, IconCheck, IconChevron, IconCross, IconDoc, IconShield, IconWarn, SEV, Switch, TONE, VerdictIcon, api, errorText, isFinished, plural, prNumber, shortRepo, timeAgo, unitName, verdictWord } from "../ui";
 
 const AREA: Record<Dimension, [string, string]> = {
   architecture: ["Architecture", "Design and how it holds up as you grow"],
@@ -82,12 +82,25 @@ export function ReviewView({ ctx, prKey }: { ctx: Ctx; prKey: string }) {
       <h1 className="rv-title">{pr.title}</h1>
       <div className="rv-meta">
         <span>{shortRepo(pr.repo)} {prNumber(pr)}</span>
+        {isFinished(pr) && <span className="tag">{pr.status === "merged" ? "Merged" : "Closed"}</span>}
         <span>{pr.author}</span>
         <span>{timeAgo(pr.updatedAt)}</span>
         <span className="rv-links">
           <button className="link" onClick={() => attempt(() => api().openExternal(pr.url))}>Open on {PROVIDER_NAME[pr.provider]}</button>
           {review?.state !== "running" && review?.state !== "queued" && (
             <button className="link" onClick={() => attempt(() => api().startReview(prKey))}>{finished ? "Review again" : "Start review"}</button>
+          )}
+          {pr.addedByLink && (
+            <button
+              className="link"
+              onClick={() => attempt(async () => {
+                await api().removeLinked(prKey);
+                go({ view: "reviews" });
+                toast("Removed from your list.");
+              })}
+            >
+              Remove from list
+            </button>
           )}
         </span>
       </div>
@@ -117,8 +130,9 @@ export function ReviewView({ ctx, prKey }: { ctx: Ctx; prKey: string }) {
         <div className="col">
           {header}
           <section className="answer" style={{ ["--tone" as string]: `var(--${tone})`, ["--tone-soft" as string]: `var(--${tone}-soft)` }}>
-            <div className="answer-word"><VerdictIcon verdict={result.verdict} s={20} />{WORD[result.verdict]}</div>
+            <div className="answer-word"><VerdictIcon verdict={result.verdict} s={20} />{verdictWord(result.verdict, pr)}</div>
             <p>{result.summary}</p>
+            <ComplianceLine result={result} catalog={ctx.catalog} onDetails={() => setTab("checked")} />
             {review.state === "sent" && review.sentAs ? (
               <small>You sent this review to {PROVIDER_NAME[pr.provider]} as “{SEND[review.sentAs][0]}”.</small>
             ) : (
@@ -137,13 +151,13 @@ export function ReviewView({ ctx, prKey }: { ctx: Ctx; prKey: string }) {
             {tab === "issues" && <IssuesTab pr={pr} review={review} result={result} diff={diff} open={open} setOpen={setOpen} ctx={ctx} setInclude={setInclude} />}
             {tab === "reqs" && <RequirementsTab ctx={ctx} pr={pr} result={result} />}
             {tab === "code" && <CodeTab result={result} diff={diff} service={PROVIDER_NAME[pr.provider]} onJump={(i) => { setTab("issues"); setOpen(i); }} />}
-            {tab === "checked" && <CheckedTab result={result} />}
+            {tab === "checked" && <CheckedTab result={result} catalog={ctx.catalog} />}
           </div>
         </div>
       </div>
       {review.state === "ready" && (
         <div className="send-bar">
-          <span>{kept ? `${plural(kept, "comment")} will be sent on this ${pr.provider === "gitlab" ? "merge request" : "pull request"}.` : "Nothing is sent until you choose."}</span>
+          <span>{kept ? `${plural(kept, "comment")} will be sent on this ${unitName(pr)}.` : "Nothing is sent until you choose."}</span>
           <button className="btn primary" onClick={() => setSending(true)}>Send review…</button>
         </div>
       )}
@@ -318,6 +332,7 @@ function IssuesTab({ pr, review, result, diff, open, setOpen, ctx, setInclude }:
                   )}
                 </div>
                 {f.ruleSource && <div className="source"><IconDoc s={14} /><span>{fromDoc ? "From your document: " : "Based on: "}{f.ruleSource}</span></div>}
+                {f.controls?.length ? <div className="source"><IconShield s={14} /><span>Breaks {f.controls.map((c) => <span className="ctl" key={c}>{c}</span>)}</span></div> : null}
                 <div className="source"><IconCheck s={14} /><span>{f.challenge.note}</span></div>
                 {editing === i ? (
                   <form
@@ -460,11 +475,48 @@ function CodeTab({ result, diff, service, onJump }: { result: ReviewResult; diff
   );
 }
 
-function CheckedTab({ result }: { result: ReviewResult }) {
+/** The standards on the verdict card. Ones the change doesn't touch are left out to keep it short. */
+function ComplianceLine({ result, catalog, onDetails }: { result: ReviewResult; catalog: ComplianceStandard[]; onDetails: () => void }) {
+  const shown = (result.compliance ?? []).filter((c) => c.status !== "not_applicable");
+  if (!shown.length) return null;
+  const nameOf = (id: string) => catalog.find((s) => s.id === id)?.shortName ?? id;
+  return (
+    <div className="comp-line">
+      <IconShield s={15} />
+      {shown.map((c) => {
+        const cls = COMPLIANCE_STATUS[c.status][1];
+        const word = c.status === "issues" ? "has issues" : c.status === "pass" ? "passed" : "needs a check";
+        return <span key={c.standard}><b>{nameOf(c.standard)}</b> <span className={cls}>{word}</span></span>;
+      })}
+      <button className="link" style={{ fontSize: "inherit" }} onClick={onDetails}>Details</button>
+    </div>
+  );
+}
+
+function CheckedTab({ result, catalog }: { result: ReviewResult; catalog: ComplianceStandard[] }) {
   const s = result.challengeStats;
   const skipped = result.coverage.filesSkipped;
+  const compliance = result.compliance ?? [];
   return (
     <>
+      {compliance.length > 0 && (
+        <>
+          <h2 className="section-title">Compliance and standards</h2>
+          <div className="list">
+            {compliance.map((c) => {
+              const [word, cls] = COMPLIANCE_STATUS[c.status];
+              return (
+                <div className="li" key={c.standard}>
+                  <span className="icon c-muted"><IconShield /></span>
+                  <div className="li-main"><b>{catalog.find((x) => x.id === c.standard)?.name ?? c.standard}</b><small>{c.note}</small></div>
+                  <div className="li-end"><span className={cls} style={{ fontWeight: 500 }}>{word}</span></div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="note">Checked against each standard's code-level controls. This doesn't make the project compliant or replace an audit.</p>
+        </>
+      )}
       <h2 className="section-title">What was checked</h2>
       <div className="list">
         {(Object.keys(AREA) as Dimension[]).map((k) => {
@@ -511,7 +563,10 @@ function CheckedTab({ result }: { result: ReviewResult }) {
 }
 
 function SendDialog({ pr, result, kept, onClose, onSent }: { pr: PullRequest; result: ReviewResult; kept: number; onClose: () => void; onSent: () => void }) {
-  const suggested: SendEvent = result.verdict === "request_changes" ? "request_changes" : result.verdict === "needs_discussion" ? "comment" : "approve";
+  // After a merge, approving or requesting changes no longer does anything, so only comments are offered.
+  const done = isFinished(pr);
+  const kinds: SendEvent[] = done ? ["comment"] : (Object.keys(SEND) as SendEvent[]);
+  const suggested: SendEvent = done ? "comment" : result.verdict === "request_changes" ? "request_changes" : result.verdict === "needs_discussion" ? "comment" : "approve";
   const [event, setEvent] = useState<SendEvent>(suggested);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -534,7 +589,8 @@ function SendDialog({ pr, result, kept, onClose, onSent }: { pr: PullRequest; re
         <p>To {shortRepo(pr.repo)} {prNumber(pr)} on {PROVIDER_NAME[pr.provider]}, under your name.</p>
       </div>
       <div className="d-body">
-        {(Object.keys(SEND) as SendEvent[]).map((k) => (
+        {done && <p className="note" style={{ margin: "0 0 10px" }}>This {unitName(pr)} is already {pr.status}, so it can only get comments. Fixes will need a new change.</p>}
+        {kinds.map((k) => (
           <label className="choice" key={k}>
             <input type="radio" name="sendas" checked={event === k} onChange={() => setEvent(k)} />
             <span><b>{SEND[k][0]}{k === suggested ? " (suggested)" : ""}</b><small>{SEND[k][1]}</small></span>
@@ -547,7 +603,7 @@ function SendDialog({ pr, result, kept, onClose, onSent }: { pr: PullRequest; re
       </div>
       <div className="d-foot">
         <button className="btn" onClick={onClose}>Cancel</button>
-        <button className="btn primary" autoFocus disabled={busy} onClick={send}>{busy ? "Sending…" : "Send review"}</button>
+        <button className="btn primary" data-autofocus disabled={busy} onClick={send}>{busy ? "Sending…" : "Send review"}</button>
       </div>
     </Dialog>
   );

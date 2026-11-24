@@ -22,6 +22,8 @@ export function neutraliseQuickActions(text: string): string {
 
 interface MergeRequestJson {
   iid: number;
+  state?: "opened" | "merged" | "closed" | "locked";
+  diff_refs?: { head_sha: string } | null;
   title: string;
   description: string | null;
   web_url: string;
@@ -128,6 +130,12 @@ export class GitLabProvider implements GitProvider {
     return [...found.values()];
   }
 
+  async getPullRequest(repo: string, number: number, accountId: string): Promise<PullRequest> {
+    const mr = await this.request<MergeRequestJson>(`${this.project({ repo })}/merge_requests/${number}`);
+    if (!mr.sha && !mr.diff_refs) throw new ProviderError("GitLab is still preparing this merge request. Try again in a moment.");
+    return this.toPullRequest(mr, accountId);
+  }
+
   async listRepositories(accountId: string): Promise<RepoInfo[]> {
     const projects = await this.all<{ path_with_namespace: string; visibility?: string }>(
       "/projects?membership=true&archived=false&order_by=last_activity_at",
@@ -151,10 +159,11 @@ export class GitLabProvider implements GitProvider {
       headRef: mr.source_branch,
       // GitLab's list has no base commit or line counts. getDetails finds the base when a review runs.
       baseSha: "",
-      headSha: mr.sha as string,
+      headSha: (mr.sha ?? mr.diff_refs?.head_sha) as string,
       additions: 0,
       deletions: 0,
       updatedAt: mr.updated_at,
+      status: mr.state === "merged" ? "merged" : mr.state === "closed" || mr.state === "locked" ? "closed" : "open",
     };
   }
 

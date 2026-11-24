@@ -2,16 +2,16 @@ import { useState } from "react";
 import { projectEnabled, queueOrder, sortProjects } from "../../../shared/priority";
 import type { PullRequest, ReviewRecord } from "../../../shared/types";
 import type { Ctx } from "../App";
-import { IconCheck, IconCross, TONE, VerdictIcon, WORD, api, plural, prNumber, shortRepo, timeAgo } from "../ui";
+import { IconCheck, IconCross, IconLink, TONE, VerdictIcon, api, isFinished, plural, prNumber, shortRepo, timeAgo, verdictWord } from "../ui";
 
-function Outcome({ review, off, position }: { review?: ReviewRecord; off: boolean; position: number }) {
+function Outcome({ pr, review, off, position }: { pr: PullRequest; review?: ReviewRecord; off: boolean; position: number }) {
   if (!review) return <span className="outcome c-muted">{off ? "Project is off" : "Not reviewed"}</span>;
   if (review.state === "ready" && review.result) {
     const v = review.result.verdict;
     const n = review.result.findings.filter((_, i) => review.drafts[i]?.included !== false).length;
     return (
       <>
-        <span className={`outcome c-${TONE[v]}`}><VerdictIcon verdict={v} s={15} />{WORD[v]}</span>
+        <span className={`outcome c-${TONE[v]}`}><VerdictIcon verdict={v} s={15} />{verdictWord(v, pr)}</span>
         <span className="row-count">{n ? plural(n, "issue") : "No issues"}</span>
       </>
     );
@@ -23,7 +23,7 @@ function Outcome({ review, off, position }: { review?: ReviewRecord; off: boolea
 }
 
 export function ReviewsView({ ctx }: { ctx: Ctx }) {
-  const { state, go, openConnect, attempt } = ctx;
+  const { state, go, openConnect, openLink, attempt } = ctx;
   const [q, setQ] = useState("");
 
   if (!state.accounts.length) {
@@ -53,10 +53,10 @@ export function ReviewsView({ ctx }: { ctx: Ctx }) {
   const row = (p: PullRequest) => (
     <button className="row" key={p.key} onClick={() => go({ view: "review", prKey: p.key })}>
       <span className="row-main">
-        <span className="row-title" style={{ display: "block" }}>{p.title}</span>
-        <span className="row-meta" style={{ display: "block" }}>{shortRepo(p.repo)} {prNumber(p)} · {p.author} · {timeAgo(p.updatedAt)}</span>
+        <span className="row-title" style={{ display: "block" }}>{p.title}{isFinished(p) && <> <span className="tag">{p.status === "merged" ? "Merged" : "Closed"}</span></>}</span>
+        <span className="row-meta" style={{ display: "block" }}>{shortRepo(p.repo)} {prNumber(p)} · {p.author} · {timeAgo(p.updatedAt)}{p.addedByLink ? " · added by link" : ""}</span>
       </span>
-      <span className="row-end"><Outcome review={state.reviews[p.key]} off={isOff(p)} position={queue.indexOf(p) + 1} /></span>
+      <span className="row-end"><Outcome pr={p} review={state.reviews[p.key]} off={isOff(p)} position={queue.indexOf(p) + 1} /></span>
     </button>
   );
   const group = (title: string, prs: PullRequest[]) =>
@@ -82,15 +82,14 @@ export function ReviewsView({ ctx }: { ctx: Ctx }) {
           <button className="btn small" onClick={() => go({ view: "settings" })}>Open settings</button>
         </div>
       ))}
-      {state.prs.length > 0 && (
-        <div className="tools">
-          <input className="input" placeholder="Search by title, project or person" aria-label="Search reviews" value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-      )}
+      <div className="tools">
+        {state.prs.length > 0 && <input className="input" placeholder="Search by title, project or person" aria-label="Search reviews" value={q} onChange={(e) => setQ(e.target.value)} />}
+        <button className="btn" onClick={openLink}><IconLink />Review by link</button>
+      </div>
       {!shown.length && (
         <div className="empty" style={{ marginTop: 16 }}>
           <b>{query ? "No matches" : "Nothing assigned to you"}</b>
-          {query ? "Try a different search." : "New requests will show up here on their own."}
+          {query ? "Try a different search." : "New requests will show up here on their own. To review anything else, even a merged change, use Review by link."}
         </div>
       )}
       {group("Ready for you", shown.filter((p) => stateOf(p) === "ready"))}

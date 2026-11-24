@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { AppState, GuidelineScope } from "../../shared/types";
+import type { AppState, ComplianceStandard, GuidelineScope } from "../../shared/types";
 import logo from "../../../build/icon.svg";
 import { Dialog, api, errorText, prNumber, shortRepo } from "./ui";
 import { ConnectDialog } from "./views/ConnectDialog";
+import { LinkDialog } from "./views/LinkDialog";
 import { ProjectsView } from "./views/ProjectList";
 import { ProjectView } from "./views/Projects";
 import { ReviewsView } from "./views/Reviews";
@@ -21,6 +22,9 @@ export interface Ctx {
   go(route: Route): void;
   toast(message: string, action?: { label: string; run: () => void }): void;
   openConnect(): void;
+  openLink(): void;
+  /** Every standard the reviewer knows, including planned ones. Empty until loaded. */
+  catalog: ComplianceStandard[];
   /** Runs an action and shows any failure as a message. */
   attempt(fn: () => Promise<unknown>): void;
 }
@@ -36,12 +40,15 @@ export function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [route, setRoute] = useState<Route>({ view: "reviews" });
   const [toastData, setToast] = useState<{ message: string; action?: { label: string; run: () => void } } | null>(null);
-  const [overlay, setOverlay] = useState<"connect" | "search" | "keys" | null>(null);
+  const [overlay, setOverlay] = useState<"connect" | "search" | "keys" | "link" | null>(null);
+  const [catalog, setCatalog] = useState<ComplianceStandard[]>([]);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     let live = true;
     void api().getState().then((s) => live && setState(s));
+    // The catalogue ships with the app and never changes while it runs.
+    void api().getComplianceCatalog().then((c) => live && setCatalog(c), () => undefined);
     const off = api().onState(setState);
     return () => {
       live = false;
@@ -101,6 +108,8 @@ export function App() {
     go: setRoute,
     toast,
     openConnect: () => setOverlay("connect"),
+    openLink: () => setOverlay("link"),
+    catalog,
     attempt: (fn) => void fn().catch((err) => toast(errorText(err))),
   };
 
@@ -159,6 +168,7 @@ export function App() {
       {overlay === "connect" && <ConnectDialog onClose={() => setOverlay(null)} ctx={ctx} />}
       {overlay === "search" && <SearchDialog ctx={ctx} onClose={() => setOverlay(null)} onKeys={() => setOverlay("keys")} />}
       {overlay === "keys" && <KeysDialog onClose={() => setOverlay(null)} />}
+      {overlay === "link" && <LinkDialog ctx={ctx} onClose={() => setOverlay(null)} />}
 
       <div className={`toast ${toastData ? "on" : ""}`} role="status">
         {toastData && <span>{toastData.message}</span>}
@@ -180,7 +190,7 @@ export function App() {
 function SearchDialog({ ctx, onClose, onKeys }: { ctx: Ctx; onClose: () => void; onKeys: () => void }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
-  const { state, go, openConnect } = ctx;
+  const { state, go, openConnect, openLink } = ctx;
   const items = useMemo(() => {
     const repos = [...new Set(state.prs.map((p) => p.repo))];
     return [
@@ -189,6 +199,7 @@ function SearchDialog({ ctx, onClose, onKeys }: { ctx: Ctx; onClose: () => void;
       { label: "Reviews", hint: "Go to", run: () => go({ view: "reviews" }) },
       { label: "Projects", hint: "Go to", run: () => go({ view: "projects" }) },
       { label: "Settings", hint: "Go to", run: () => go({ view: "settings" }) },
+      { label: "Review a pull request by link", hint: "Action", run: openLink },
       { label: "Connect an account", hint: "Action", run: openConnect },
       { label: "Keyboard shortcuts", hint: "Help", run: onKeys },
     ];

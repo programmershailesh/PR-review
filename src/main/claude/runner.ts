@@ -14,6 +14,7 @@ const SPECIALISTS = new Set([
   "correctness-reviewer",
   "stack-reviewer",
   "requirements-reviewer",
+  "compliance-reviewer",
 ]);
 const TIMEOUT_MS = 45 * 60 * 1000;
 

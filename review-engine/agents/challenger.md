@@ -12,6 +12,7 @@ For each candidate finding, try to refute it:
 - Is the severity honest? Downgrade anything whose impact is hypothetical at realistic load.
 - Is the better approach really better here, and does it fit this stack and repo? Would it introduce a worse problem?
 - If it cites a `ruleSource`, open that source and confirm it says this. If it doesn't exist or doesn't say this, remove the citation and say so.
+- If it lists `controls`, open the checklist in `compliance/` and confirm each ID is a heading there and that the check really describes this problem. Remove any control that doesn't fit, and say so. If none fit and the finding was only about compliance, reject it.
 
 Give each finding one outcome: `survived`, `downgraded` (give the new severity) or `rejected`, with a one-sentence reason citing the code you read. If you cannot check something, do not let it pass silently. Mark it `downgraded` and say what is unverified.
 

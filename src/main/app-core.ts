@@ -2,17 +2,19 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { projectEnabled, queueOrder } from "../shared/priority";
-import { ALL_PROJECTS, type AddFilesOutcome, type AppState, type ClaudeStatus, type DocLevel, type FindingDraft, type GuidelineDoc, type GuidelineScope, type ProviderId, type PullRequest, type ReviewRecord, type SendEvent, type Settings } from "../shared/types";
+import { parsePrLink } from "../shared/pr-link";
+import { ALL_PROJECTS, PROVIDER_NAME, type AddFilesOutcome, type AppState, type ClaudeStatus, type ComplianceChoice, type ComplianceStandard, type DocLevel, type FindingDraft, type GuidelineDoc, type GuidelineScope, type ProviderId, type PullRequest, type ReviewRecord, type SendEvent, type Settings } from "../shared/types";
 import { checkClaude } from "./claude/auth";
 import { findClaude } from "./claude/find";
+import { loadCatalog, type Catalog } from "./compliance/catalog";
 import { runReview } from "./claude/runner";
 import { convertDocument, fileSize, validateDocument } from "./guidelines/convert";
 import { GitHubProvider } from "./providers/github";
 import { GitLabProvider } from "./providers/gitlab";
-import { type GitProvider } from "./providers/types";
+import { ProviderError, type GitProvider } from "./providers/types";
 import { prepareBundle, removeBundle } from "./review/bundle";
 import { composeReview } from "./review/compose";
-import { verifyRuleSources } from "./review/sources";
+import { verifyControls, verifyRuleSources } from "./review/sources";
 import type { Store } from "./store";
 
 const POLL_MS = 2 * 60 * 1000;
@@ -41,6 +43,7 @@ export class AppCore {
   private pollTimer?: NodeJS.Timeout;
   private background = false;
   private stopping = false;
+  private catalogCache?: Catalog;
 
   constructor(private readonly deps: CoreDeps) {}
 
@@ -49,8 +52,8 @@ export class AppCore {
   }
 
   state(): AppState {
-    const { accounts, prs, reviews, docs, rules, settings, projects, projectOrder, repositories, lastRefreshAt } = this.data;
-    return { claude: this.claude, accounts, prs, reviews, docs, rules, settings, projects, projectOrder, repositories, refreshing: this.refreshing, lastRefreshAt };
+    const { accounts, prs, reviews, docs, rules, settings, projects, compliance, projectOrder, repositories, lastRefreshAt } = this.data;
+    return { claude: this.claude, accounts, prs, reviews, docs, rules, settings, projects, compliance, projectOrder, repositories, refreshing: this.refreshing, lastRefreshAt };
   }
 
   private isEnabled(repo: string): boolean {
@@ -171,6 +174,9 @@ export class AppCore {
       account.error = err instanceof Error ? err.message : String(err);
       return;
     }
+    // A PR added by link stays added by link, even while it's also assigned.
+    const linked = new Set(this.data.prs.filter((p) => p.addedByLink).map((p) => p.key));
+    latest = latest.map((p) => (linked.has(p.key) ? { ...p, addedByLink: true } : p));
     const latestKeys = new Set(latest.map((p) => p.key));
     const now = Date.now();
     const kept: PullRequest[] = [];
@@ -180,6 +186,11 @@ export class AppCore {
         continue;
       }
       if (latestKeys.has(pr.key)) continue;
+      // Nobody assigns a merged PR, so one added by link stays until the user removes it.
+      if (pr.addedByLink) {
+        kept.push(pr);
+        continue;
+      }
       const review = this.data.reviews[pr.key];
       // Sending a review removes the request on GitHub, so a sent review stays visible for a while.
       const keepSent = review?.state === "sent" && review.sentAt && now - Date.parse(review.sentAt) < SENT_RETENTION_MS;
@@ -254,8 +265,10 @@ export class AppCore {
   }
 
   async startReview(prKey: string): Promise<void> {
-    const pr = this.findPr(prKey);
+    let pr = this.findPr(prKey);
     if (this.running?.prKey === prKey) return;
+    // Polling doesn't update a PR added by link, so fetch it now in case it gained commits or merged.
+    if (pr.addedByLink) pr = this.replacePr(await this.provider(pr.accountId).getPullRequest(pr.repo, pr.number, pr.accountId), true);
     this.enqueue(pr, true);
     this.changed();
     this.pump();
@@ -307,12 +320,14 @@ export class AppCore {
       if (abort.signal.aborted) throw new Error("cancelled");
       const docs = this.docsFor(pr.repo);
       const rules = [...(this.data.rules[pr.repo] ?? []), ...(this.data.rules[ALL_PROJECTS] ?? [])];
+      const standards = this.complianceFor(pr.repo);
       const bundle = await prepareBundle({
         pr,
         details,
         remote: provider.gitRemote(pr),
         docs,
         rules,
+        compliance: standards,
         cacheRoot: path.join(this.deps.userData, "repos"),
         bundleRoot: path.join(this.deps.userData, "bundles"),
       });
@@ -333,13 +348,15 @@ export class AppCore {
       });
       // The record may have been replaced if the PR was updated or disconnected during the run.
       if (this.data.reviews[pr.key] !== review) return;
-      review.result = verifyRuleSources(result, {
+      const checked = verifyRuleSources(result, {
         bundleDir: bundle.dir,
         docTitles: docs.map((d) => d.doc.name),
         hasQuickRules: rules.length > 0,
         description: `${pr.title}\n${pr.description}`,
         linkedIssues: details.linkedIssues.filter((i) => i.title).map((i) => i.reference),
+        standardNames: standards.flatMap((s) => [s.standard.name, s.standard.shortName ?? s.standard.name]),
       });
+      review.result = verifyControls(checked, standards.map((s) => ({ id: s.standard.id, controls: s.controls })));
       review.drafts = {};
       review.state = "ready";
       review.finishedAt = new Date().toISOString();
@@ -400,6 +417,9 @@ export class AppCore {
     const pr = this.findPr(prKey);
     const review = this.data.reviews[prKey];
     if (review?.state !== "ready" || !review.result) throw new Error("This review isn't ready to send.");
+    if ((pr.status === "merged" || pr.status === "closed") && event !== "comment") {
+      throw new Error(`This ${pr.provider === "gitlab" ? "merge request" : "pull request"} is already ${pr.status}, so it can only get comments.`);
+    }
     const submission = composeReview(review.result, review.drafts, await this.getDiff(prKey), event);
     await this.provider(pr.accountId).submitReview({ ...pr, headSha: review.headSha }, submission);
     review.state = "sent";
@@ -407,6 +427,105 @@ export class AppCore {
     review.sentAt = new Date().toISOString();
     this.deps.store.flush();
     this.changed();
+  }
+
+  /* Review by link */
+
+  /** Puts a fetched PR in the list, replacing any older copy, and returns the copy now in the list. */
+  private replacePr(pr: PullRequest, addedByLink: boolean): PullRequest {
+    const existing = this.data.prs.findIndex((p) => p.key === pr.key);
+    const next = { ...pr, ...(addedByLink || this.data.prs[existing]?.addedByLink ? { addedByLink: true } : {}) };
+    if (existing === -1) this.data.prs.push(next);
+    else this.data.prs[existing] = next;
+    return next;
+  }
+
+  /** Reviews any PR or MR the user can see, open or merged. Returns its key, so the UI can open it. */
+  async addByLink(url: string): Promise<string> {
+    const link = parsePrLink(url);
+    if ("error" in link) throw new Error(link.error);
+    const unit = link.provider === "gitlab" ? "merge request" : "pull request";
+    const accounts = this.data.accounts.filter((a) => a.host === link.host);
+    if (!accounts.length) throw new Error(`No account for ${link.host} is connected. Connect it in Settings first, so Code Reviewer can read this ${unit}.`);
+    const matching = accounts.filter((a) => a.provider === link.provider);
+    if (!matching.length) {
+      throw new Error(`${link.host} is connected as ${PROVIDER_NAME[accounts[0]!.provider]}, but this is a ${PROVIDER_NAME[link.provider]} link.`);
+    }
+    let fetched: PullRequest | undefined;
+    let lastError: unknown;
+    // With two logins on one server, the first that can see the PR is used.
+    for (const account of matching) {
+      try {
+        fetched = await this.provider(account.id).getPullRequest(link.repo, link.number, account.id);
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (!fetched) {
+      if (lastError instanceof ProviderError && (lastError.status === 404 || lastError.status === 403)) {
+        throw new Error(`Couldn't open ${link.repo} ${link.provider === "gitlab" ? "!" : "#"}${link.number}. Check the link, and that your ${PROVIDER_NAME[link.provider]} account can see it.`);
+      }
+      throw lastError instanceof Error ? lastError : new Error(String(lastError));
+    }
+    const found = fetched;
+    const already = this.data.prs.some((p) => p.key === found.key);
+    const pr = this.replacePr(found, !already);
+    if (this.data.reviews[pr.key]?.headSha !== pr.headSha) this.enqueue(pr, true);
+    this.changed();
+    this.pump();
+    return pr.key;
+  }
+
+  async removeLinked(prKey: string): Promise<void> {
+    const pr = this.findPr(prKey);
+    if (!pr.addedByLink) throw new Error("Only changes added by link can be removed. Assigned ones leave the list when they're no longer assigned to you.");
+    if (this.running?.prKey === prKey) this.running.abort.abort();
+    delete this.data.reviews[prKey];
+    this.data.prs = this.data.prs.filter((p) => p.key !== prKey);
+    await rm(this.diffPath(prKey), { force: true });
+    this.changed();
+  }
+
+  /* Compliance standards */
+
+  private catalog(): Catalog {
+    this.catalogCache ??= loadCatalog(this.deps.enginePath);
+    return this.catalogCache;
+  }
+
+  getComplianceCatalog(): ComplianceStandard[] {
+    return this.catalog().standards;
+  }
+
+  setCompliance(scope: GuidelineScope, choices: ComplianceChoice[]): void {
+    const available = new Set(this.catalog().standards.filter((s) => s.status === "available").map((s) => s.id));
+    const seen = new Set<string>();
+    const clean: ComplianceChoice[] = [];
+    for (const c of choices) {
+      if (!available.has(c.id)) throw new Error("That standard isn't available yet.");
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      clean.push({ id: c.id, level: c.level });
+    }
+    if (clean.length) this.data.compliance[scope] = clean;
+    else delete this.data.compliance[scope];
+    this.changed();
+  }
+
+  /** The project's standards plus the ones for all projects. The project's level wins when both pick one. */
+  private complianceFor(repo: string) {
+    const picked = new Map<string, DocLevel>();
+    for (const c of this.data.compliance[ALL_PROJECTS] ?? []) picked.set(c.id, c.level);
+    for (const c of this.data.compliance[repo] ?? []) picked.set(c.id, c.level);
+    if (!picked.size) return [];
+    const catalog = this.catalog();
+    return [...picked].flatMap(([id, level]) => {
+      const standard = catalog.standards.find((s) => s.id === id && s.status === "available");
+      // A standard withdrawn in a later version is skipped rather than failing the review.
+      if (!standard) return [];
+      return [{ standard, level, checklistPath: catalog.checklistPath(id), controls: catalog.controls.get(id) ?? [] }];
+    });
   }
 
   /* Guidelines */

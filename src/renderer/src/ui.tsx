@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import type { PullRequest, Severity, Verdict, CodeReviewerApi } from "../../shared/types";
+import type { ComplianceStatus, PullRequest, Severity, Verdict, CodeReviewerApi } from "../../shared/types";
 
 declare global {
   interface Window {
@@ -14,6 +14,24 @@ export const WORD: Record<Verdict, string> = {
   approve_with_comments: "OK to merge, with notes",
   approve: "OK to merge",
 };
+/** Once a change has merged, "don't merge yet" makes no sense. The verdict becomes what to do about it now. */
+const WORD_AFTER: Record<Verdict, string> = {
+  request_changes: "Needs a follow-up fix",
+  needs_discussion: "Needs a decision",
+  approve_with_comments: "Fine, with notes",
+  approve: "Looks good",
+};
+export const isFinished = (pr: Pick<PullRequest, "status">) => pr.status === "merged" || pr.status === "closed";
+export const verdictWord = (verdict: Verdict, pr: Pick<PullRequest, "status">) => (isFinished(pr) ? WORD_AFTER : WORD)[verdict];
+export const unitName = (pr: Pick<PullRequest, "provider">) => (pr.provider === "gitlab" ? "merge request" : "pull request");
+
+export const COMPLIANCE_STATUS: Record<ComplianceStatus, [string, string]> = {
+  issues: ["Has issues", "c-red"],
+  pass: ["Passed", "c-green"],
+  needs_check: ["Needs a person to check", "c-amber"],
+  not_applicable: ["Not affected", "c-muted"],
+};
+
 export const TONE: Record<Verdict, string> = {
   request_changes: "red",
   needs_discussion: "amber",
@@ -53,6 +71,8 @@ export const IconCross = ({ s = 16 }: { s?: number }) => svg(s, <path d="M4 4l8 
 export const IconWarn = ({ s = 16 }: { s?: number }) => svg(s, <><path d="M8 2 14.5 13.5h-13z" /><path d="M8 6.5v3M8 11.5v.01" /></>, 1.8);
 export const IconAsk = ({ s = 16 }: { s?: number }) => svg(s, <><circle cx="8" cy="8" r="6.5" /><path d="M6 6.2a2 2 0 1 1 3 1.7c-.7.4-1 .8-1 1.5M8 11.7v.01" /></>, 1.8);
 export const IconDoc = ({ s = 16 }: { s?: number }) => svg(s, <><path d="M4 1.5h5.5L12.5 4.5v10H4z" /><path d="M6.5 8H10M6.5 11H10" /></>, 1.5);
+export const IconShield = ({ s = 16 }: { s?: number }) => svg(s, <><path d="M8 1.5 13.5 3.5v4c0 3.3-2.3 5.8-5.5 7-3.2-1.2-5.5-3.7-5.5-7v-4z" /><path d="m5.8 8 1.6 1.6L10.4 6.5" /></>, 1.5);
+export const IconLink = ({ s = 16 }: { s?: number }) => svg(s, <><path d="M6.8 9.2a2.8 2.8 0 0 0 4 0l2.2-2.2a2.8 2.8 0 0 0-4-4l-.9.9" /><path d="M9.2 6.8a2.8 2.8 0 0 0-4 0L3 9a2.8 2.8 0 0 0 4 4l.9-.9" /></>, 1.6);
 export const IconChevron = () => <span className="chev">{svg(16, <path d="m4 6 4 4 4-4" />, 1.8)}</span>;
 
 export function VerdictIcon({ verdict, s = 16 }: { verdict: Verdict; s?: number }) {
@@ -82,7 +102,7 @@ export function Switch({ on, label, onChange }: { on: boolean; label: string; on
   return <button className="switch" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} />;
 }
 
-export function Dialog({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+export function Dialog({ onClose, children, wide }: { onClose: () => void; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -95,6 +115,7 @@ export function Dialog({ onClose, children }: { onClose: () => void; children: R
   return (
     <dialog
       ref={ref}
+      className={wide ? "wide" : undefined}
       onClose={onClose}
       onClick={(e) => {
         if (e.target === ref.current) onClose();

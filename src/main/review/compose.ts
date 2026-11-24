@@ -13,6 +13,7 @@ function defaultComment(f: Finding): string {
   const parts = [`**${SEVERITY_LABEL[f.severity]}: ${f.title}**`, f.problem, f.impact, `**A better way:** ${f.betterApproach}`];
   if (f.suggestedCode) parts.push("```\n" + f.suggestedCode + "\n```");
   if (f.ruleSource) parts.push(`Based on: ${f.ruleSource}`);
+  if (f.controls?.length) parts.push(`Related controls: ${f.controls.join(", ")}`);
   return parts.join("\n\n");
 }
 

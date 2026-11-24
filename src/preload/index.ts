@@ -31,6 +31,10 @@ const api: CodeReviewerApi = {
   setProjectOrder: call("setProjectOrder"),
   refreshRepositories: call("refreshRepositories"),
   openExternal: call("openExternal"),
+  getComplianceCatalog: call("getComplianceCatalog"),
+  setCompliance: call("setCompliance"),
+  addByLink: call("addByLink"),
+  removeLinked: call("removeLinked"),
 } as CodeReviewerApi;
 
 contextBridge.exposeInMainWorld("codeReviewer", api);

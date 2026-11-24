@@ -56,3 +56,39 @@ pre.code .ln { white-space: pre; }
   .col { padding: 12px 16px 40px; }
   .send-bar { position: static; padding: 10px 16px; }
 }
+
+/* Compliance and standards */
+.std-badge { flex: none; width: 38px; height: 38px; border-radius: 9px; background: var(--card-2); border: 1px solid var(--line); display: grid; place-items: center; color: var(--text-2); }
+.ctl { display: inline-block; font: 500 12.5px/1.6 var(--mono); padding: 0 7px; border-radius: 6px; background: var(--card-2); color: var(--text); white-space: nowrap; margin: 0 4px 4px 0; }
+.comp-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 10px; font-size: 13.5px; color: var(--text-2); }
+.comp-line svg { flex: none; }
+.comp-line b { font-weight: 500; color: var(--text); }
+.pick-list { max-height: min(50vh, 440px); overflow: auto; margin: 10px -10px 0; padding: 0 2px; }
+.pick-cat { font-size: 12.5px; font-weight: 600; color: var(--text-3); margin: 14px 10px 2px; }
+.pick-cat:first-child { margin-top: 4px; }
+.pick { display: flex; gap: 12px; padding: 9px 10px; border-radius: 10px; cursor: pointer; align-items: flex-start; }
+.pick:hover { background: var(--hover); }
+.pick input { flex: none; width: 16px; height: 16px; margin: 4px 0 0; accent-color: var(--accent); }
+.pick b { font-weight: 500; }
+.pick small { display: block; color: var(--text-3); font-size: 13.5px; line-height: 1.45; }
+.pick.added { cursor: default; }
+.pick.added b, .pick.added small { opacity: .6; }
+.region { display: inline-block; font-size: 12px; font-weight: 500; color: var(--text-3); border: 1px solid var(--line-2); border-radius: 6px; padding: 0 6px; margin-left: 8px; vertical-align: 1px; white-space: nowrap; }
+.d-foot .grow { margin-right: auto; align-self: center; color: var(--text-2); font-size: 14px; }
+dialog.wide { width: min(640px, calc(100vw - 32px)); }
+
+/* Review by link */
+.tag { display: inline-block; font-size: 12px; font-weight: 600; line-height: 18px; padding: 0 7px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--line-2); color: var(--text-2); vertical-align: 1px; }
+.link-info { display: flex; gap: 8px; align-items: center; min-height: 22px; margin-top: 10px; font-size: 14px; color: var(--text-2); }
+.link-info.bad { color: var(--red); }
+.link-info.good svg { color: var(--green); }
+.link-info svg { flex: none; }
+.tools .btn { flex: none; }
+
+/* When the toolbar stacks, the search box must keep its height. */
+@media (max-width: 780px) {
+  .tools input.input { flex: none; }
+}
+
+/* A radio button keeps its own size, so its focus ring stays round. */
+.choice input { align-self: flex-start; }

@@ -139,3 +139,19 @@ describe("helpers", () => {
     expect(linkedIssueNumbers("fixes #12, see (#34) and #5. http://x/y#99", 5)).toEqual([12, 34]);
   });
 });
+
+describe("GitHubProvider.getPullRequest", () => {
+  const one = (over: object) => (async () => json({ ...pull(5), ...over })) as unknown as typeof fetch;
+  it("reports open, merged and closed", async () => {
+    expect((await new GitHubProvider("github.com", "t", one({ state: "open", merged_at: null })).getPullRequest("o/r", 5, "a")).status).toBe("open");
+    expect((await new GitHubProvider("github.com", "t", one({ state: "closed", merged_at: "2026-01-01T00:00:00Z" })).getPullRequest("o/r", 5, "a")).status).toBe("merged");
+    expect((await new GitHubProvider("github.com", "t", one({ state: "closed", merged_at: null })).getPullRequest("o/r", 5, "a")).status).toBe("closed");
+  });
+  it("asks for the right PR and keys it like an assigned one", async () => {
+    let url = "";
+    const fetchMock = (async (u: string) => ((url = String(u)), json(pull(5)))) as typeof fetch;
+    const p = await new GitHubProvider("github.com", "t", fetchMock).getPullRequest("o/r", 5, "a");
+    expect(url).toBe("https://api.github.com/repos/o/r/pulls/5");
+    expect(p.key).toBe("a:o/r#5");
+  });
+});

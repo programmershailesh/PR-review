@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Finding, ReviewResult } from "../../shared/types";
-import { isRealSource, verifyRuleSources, type KnownSources } from "./sources";
+import { isRealSource, verifyControls, verifyRuleSources, type KnownSources } from "./sources";
 
 const dir = mkdtempSync(path.join(tmpdir(), "code-reviewer-sources-"));
 mkdirSync(path.join(dir, "base", "docs", "adr"), { recursive: true });
@@ -68,5 +68,45 @@ describe("verifyRuleSources", () => {
     expect(out.findings[0]!.severity).toBe("blocker");
     expect(out.findings[1]!.ruleSource).toBe("Demo Standards.pdf, page 2");
     expect("ruleSource" in out.findings[2]!).toBe(false);
+  });
+});
+
+describe("verifyControls", () => {
+  const base = { findings: [], compliance: [] } as unknown as ReviewResult;
+  const f = (controls?: string[]) => ({ title: "t", ...(controls ? { controls } : {}) }) as unknown as ReviewResult["findings"][number];
+  const selected = [
+    { id: "pci-dss", controls: ["PCI DSS 3.5.1", "PCI DSS 8.6.2"] },
+    { id: "csp", controls: ["CSP script-src"] },
+  ];
+
+  it("keeps known controls written the checklist's way, and drops the rest", () => {
+    const out = verifyControls({ ...base, findings: [f(["pci dss 3.5.1.", "PCI DSS 3.5.1", "PCI DSS 12.1", "csp script-src"]), f(["Made up"]), f()] }, selected);
+    expect(out.findings[0]!.controls).toEqual(["PCI DSS 3.5.1", "CSP script-src"]);
+    expect(out.findings[1]).not.toHaveProperty("controls");
+    expect(out.findings[2]).not.toHaveProperty("controls");
+  });
+
+  it("makes statuses agree with the findings, and covers every selected standard", () => {
+    const out = verifyControls(
+      {
+        ...base,
+        findings: [f(["PCI DSS 8.6.2"])],
+        compliance: [
+          { standard: "pci-dss", status: "pass", note: "x" },
+          { standard: "csp", status: "issues", note: "Inline scripts." },
+          { standard: "gdpr", status: "issues", note: "Not selected." },
+        ],
+      },
+      selected,
+    );
+    expect(out.compliance).toEqual([
+      { standard: "pci-dss", status: "issues", note: "Issues were found. See the issues that list its controls." },
+      { standard: "csp", status: "needs_check", note: "Inline scripts. No confirmed issue cites a specific control, so check this yourself." },
+    ]);
+  });
+
+  it("keeps a reported status when it agrees", () => {
+    const out = verifyControls({ ...base, compliance: [{ standard: "csp", status: "not_applicable", note: "No headers changed." }] }, selected.slice(1));
+    expect(out.compliance).toEqual([{ standard: "csp", status: "not_applicable", note: "No headers changed." }]);
   });
 });

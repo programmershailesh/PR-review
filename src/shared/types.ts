@@ -28,17 +28,25 @@ export interface PullRequest {
   additions: number;
   deletions: number;
   updatedAt: string;
+  /** Absent on PRs saved before 1.4.0, which were all open. */
+  status?: PrStatus;
+  /** Added by pasting its link, rather than found by assignment. Kept until the user removes it. */
+  addedByLink?: boolean;
 }
+
+export type PrStatus = "open" | "merged" | "closed";
 
 export type Severity = "blocker" | "major" | "minor" | "nit";
 export type Dimension = "architecture" | "performance" | "security" | "correctness" | "stack" | "requirements";
+/** A finding's area. Compliance findings have no matching entry in ReviewResult.dimensions. */
+export type FindingDimension = Dimension | "compliance";
 export type Verdict = "approve" | "approve_with_comments" | "needs_discussion" | "request_changes";
 export type DimensionStatus = "pass" | "watch" | "block" | "not_applicable";
 export type RequirementStatus = "met" | "partial" | "missing" | "unclear";
 
 export interface Finding {
   severity: Severity;
-  dimension: Dimension;
+  dimension: FindingDimension;
   file: string;
   line: number;
   endLine?: number;
@@ -48,6 +56,8 @@ export interface Finding {
   betterApproach: string;
   suggestedCode?: string;
   ruleSource?: string;
+  /** Compliance control IDs from the selected checklists, such as "PCI DSS 3.5.1". */
+  controls?: string[];
   confidence: "high" | "medium";
   challenge: { outcome: "survived" | "downgraded"; originalSeverity?: Severity; note: string };
 }
@@ -65,6 +75,38 @@ export interface ReviewResult {
   praise: string[];
   /** The project rules this review was judged against. Absent on older saved reviews. */
   guidelinesUsed?: string[];
+  /** One entry per selected standard. Absent on reviews saved before 1.4.0. */
+  compliance?: ComplianceResult[];
+}
+
+export type ComplianceStatus = "issues" | "pass" | "needs_check" | "not_applicable";
+
+export interface ComplianceResult {
+  /** The standard's catalogue id, such as "pci-dss". */
+  standard: string;
+  status: ComplianceStatus;
+  note: string;
+}
+
+/** A standard the reviewer can check code against, from review-engine/compliance/catalog.json. */
+export interface ComplianceStandard {
+  id: string;
+  name: string;
+  /** Present when the standard is available to select. */
+  shortName?: string;
+  category: string;
+  region: string;
+  version?: string;
+  sourceUrl?: string;
+  lastReviewed?: string;
+  summary?: string;
+  /** "planned" standards are listed so people can see what's coming, but can't be selected yet. */
+  status: "available" | "planned";
+}
+
+export interface ComplianceChoice {
+  id: string;
+  level: DocLevel;
 }
 
 export type ReviewState = "queued" | "running" | "ready" | "sent" | "failed";
@@ -153,6 +195,8 @@ export interface AppState {
   rules: Record<GuidelineScope, string[]>;
   settings: Settings;
   projects: Record<string, { enabled: boolean }>;
+  /** Standards chosen per project, or for ALL_PROJECTS. */
+  compliance: Record<GuidelineScope, ComplianceChoice[]>;
   /** Project names, highest priority first. */
   projectOrder: string[];
   repositories: RepoInfo[];
@@ -189,4 +233,9 @@ export interface CodeReviewerApi {
   setProjectOrder(repos: string[]): Promise<void>;
   refreshRepositories(): Promise<void>;
   openExternal(url: string): Promise<void>;
+  getComplianceCatalog(): Promise<ComplianceStandard[]>;
+  setCompliance(scope: GuidelineScope, choices: ComplianceChoice[]): Promise<void>;
+  /** Returns the key of the PR, whether it was new or already in the list. */
+  addByLink(url: string): Promise<string>;
+  removeLinked(prKey: string): Promise<void>;
 }

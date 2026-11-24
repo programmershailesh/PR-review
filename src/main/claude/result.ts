@@ -28,7 +28,7 @@ const reviewResult = z.object({
   findings: z.array(
     z.object({
       severity,
-      dimension: z.enum(["architecture", "performance", "security", "correctness", "stack", "requirements"]),
+      dimension: z.enum(["architecture", "performance", "security", "correctness", "stack", "requirements", "compliance"]),
       file: z.string(),
       line: z.number().int(),
       endLine: z.number().int().optional(),
@@ -38,6 +38,7 @@ const reviewResult = z.object({
       betterApproach: z.string(),
       suggestedCode: z.string().optional(),
       ruleSource: z.string().optional(),
+      controls: z.array(z.string()).optional(),
       confidence: z.enum(["high", "medium"]),
       challenge: z.object({
         outcome: z.enum(["survived", "downgraded"]),
@@ -59,8 +60,20 @@ const reviewResult = z.object({
   }),
   praise: z.array(z.string()),
   guidelinesUsed: z.array(z.string()).optional(),
+  compliance: z
+    .array(z.object({ standard: z.string(), status: z.enum(["issues", "pass", "needs_check", "not_applicable"]), note: z.string() }))
+    .optional(),
 });
 
+/**
+ * Paths in findings are relative to the PR's code. Models sometimes include the bundle's own folder,
+ * as in "head/src/a.ts", which would stop inline comments, snippets and the code view finding the line.
+ */
+export function bundleRelative(file: string): string {
+  return file.replace(/\\/g, "/").replace(/^(\.\/)?(head|base)\//, "");
+}
+
 export function parseReviewResult(value: unknown): ReviewResult {
-  return reviewResult.parse(value) as ReviewResult;
+  const result = reviewResult.parse(value) as ReviewResult;
+  return { ...result, findings: result.findings.map((f) => ({ ...f, file: bundleRelative(f.file) })) };
 }

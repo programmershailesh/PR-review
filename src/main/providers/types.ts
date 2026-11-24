@@ -28,6 +28,8 @@ export interface GitProvider {
   verify(): Promise<string>;
   /** Open PRs where the user is a requested reviewer or an assignee. */
   listAssigned(username: string, accountId: string): Promise<PullRequest[]>;
+  /** One PR by its number, whatever its state, such as one pasted as a link. */
+  getPullRequest(repo: string, number: number, accountId: string): Promise<PullRequest>;
   /** Every repository this account can access. */
   listRepositories(accountId: string): Promise<RepoInfo[]>;
   getDetails(pr: PullRequest): Promise<PrDetails>;

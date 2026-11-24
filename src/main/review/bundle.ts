@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { GuidelineDoc, PullRequest } from "../../shared/types";
+import type { ComplianceStandard, DocLevel, GuidelineDoc, PullRequest } from "../../shared/types";
 import type { PrDetails } from "../providers/types";
 
 const GIT_TIMEOUT_MS = 15 * 60 * 1000;
@@ -77,6 +77,8 @@ export interface BundleInput {
   /** Enabled guideline documents, each with the path to its converted text. */
   docs: { doc: GuidelineDoc; textPath: string }[];
   rules: string[];
+  /** Selected compliance standards, each with the path to its checklist. */
+  compliance?: { standard: ComplianceStandard; level: DocLevel; checklistPath: string }[];
   cacheRoot: string;
   bundleRoot: string;
 }
@@ -164,6 +166,17 @@ export async function prepareBundle(input: BundleInput): Promise<Bundle> {
     if (input.rules.length) {
       await writeFile(path.join(guidelines, "rules.md"), input.rules.map((r) => `- ${r}`).join("\n") + "\n");
     }
+  }
+  if (input.compliance?.length) {
+    const folder = path.join(dir, "compliance");
+    await mkdir(folder, { recursive: true });
+    const index = [];
+    for (const { standard, level, checklistPath } of input.compliance) {
+      const file = `${standard.id}.md`;
+      await copyFile(checklistPath, path.join(folder, file));
+      index.push({ id: standard.id, name: standard.name, version: standard.version, level, file });
+    }
+    await writeFile(path.join(folder, "index.json"), JSON.stringify(index, null, 2));
   }
   return { dir, diff };
 }

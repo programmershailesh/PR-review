@@ -217,7 +217,31 @@ select.mini{height:32px;font-size:13.5px;border-radius:8px;padding:0 6px;backgro
 .seg button{padding:4px 13px;border-radius:7px;font-size:13.5px;color:var(--text-2)}
 .seg button[aria-pressed="true"]{background:var(--card);color:var(--text);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 
+/* Compliance and standards */
+.std-badge{flex:none;width:38px;height:38px;border-radius:9px;background:var(--card-2);border:1px solid var(--line);display:grid;place-items:center;color:var(--text-2)}
+.ctl{display:inline-block;font:500 12.5px/1.6 var(--mono);padding:0 7px;border-radius:6px;background:var(--card-2);color:var(--text);white-space:nowrap;margin:0 4px 4px 0}
+.comp-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin-top:10px;font-size:13.5px;color:var(--text-2)}
+.comp-line svg{flex:none}
+.comp-line b{font-weight:500;color:var(--text)}
+.pick-list{max-height:min(50vh,440px);overflow:auto;margin:10px -10px 0;padding:0 2px}
+.pick-cat{font-size:12.5px;font-weight:600;color:var(--text-3);margin:14px 10px 2px}
+.pick-cat:first-child{margin-top:4px}
+.pick{display:flex;gap:12px;padding:9px 10px;border-radius:10px;cursor:pointer;align-items:flex-start}
+.pick:hover{background:var(--hover)}
+.pick input{flex:none;width:16px;height:16px;margin:4px 0 0;accent-color:var(--accent)}
+.pick b{font-weight:500}
+.pick small{display:block;color:var(--text-3);font-size:13.5px;line-height:1.45}
+.pick.added{cursor:default}.pick.added b,.pick.added small{opacity:.6}
+.region{display:inline-block;font-size:12px;font-weight:500;color:var(--text-3);border:1px solid var(--line-2);border-radius:6px;padding:0 6px;margin-left:8px;vertical-align:1px;white-space:nowrap}
+.d-foot .grow{margin-right:auto;align-self:center;color:var(--text-2);font-size:14px}
+/* Review by link */
+.tag{display:inline-block;font-size:12px;font-weight:600;line-height:18px;padding:0 7px;border-radius:6px;background:var(--card-2);border:1px solid var(--line-2);color:var(--text-2);vertical-align:1px}
+.link-info{display:flex;gap:8px;align-items:center;min-height:22px;margin-top:10px;font-size:14px;color:var(--text-2)}
+.link-info.bad{color:var(--red)}
+.link-info.good svg{color:var(--green)}
+.tools .btn{flex:none}
 /* Dialog and toast */
+dialog.wide{width:min(640px,calc(100vw - 32px))}
 dialog{width:min(520px,calc(100vw - 32px));padding:0;background:var(--card);color:var(--text);border:1px solid var(--line-2);border-radius:16px;box-shadow:var(--shadow);margin-top:13vh}
 dialog::backdrop{background:rgba(5,7,10,.55);backdrop-filter:blur(3px)}
 .d-head{padding:20px 22px 6px}.d-head h2{font-size:19px;font-weight:600;letter-spacing:-.015em}.d-head p{color:var(--text-2);font-size:14px;margin-top:2px}
@@ -253,7 +277,7 @@ label.field .input{margin-top:5px;font-weight:400;width:100%}
   .rv-links{margin-left:0;width:100%}
   .send-bar{position:sticky;bottom:0;padding:10px 16px}
   .li{flex-wrap:wrap}.li-end{flex-wrap:wrap}
-  .tools{flex-direction:column}
+  .tools{flex-direction:column}.tools input.input{flex:none}
   select.input{width:100%}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
@@ -280,6 +304,9 @@ label.field .input{margin-top:5px;font-weight:400;width:100%}
 "use strict";
 const c=(o,n,t)=>({k:"ctx",o,n,t}),a=(n,t)=>({k:"add",n,t}),d=(o,t)=>({k:"del",o,t}),h=t=>({k:"hunk",t});
 const WORD={request_changes:"Don't merge yet",needs_discussion:"Needs a decision",approve_with_comments:"OK to merge, with notes",approve:"OK to merge"};
+/* After merging, "don't merge yet" makes no sense. The verdict becomes what to do about it now. */
+const WORD_MERGED={request_changes:"Needs a follow-up fix",needs_discussion:"Needs a decision",approve_with_comments:"Fine, with notes",approve:"Looks good"};
+const verdictWord=p=>(p.merged?WORD_MERGED:WORD)[p.verdict];
 const TONE={request_changes:"red",needs_discussion:"amber",approve_with_comments:"blue",approve:"green"};
 const SEV={blocker:"Must fix",major:"Should fix",minor:"Nice to have",nit:"Nice to have"};
 const AREA={architecture:["Architecture","Design and how it holds up as you grow"],performance:["Performance","Speed and resource use under load"],security:["Security","Ways someone could abuse it"],correctness:["Correctness","Bugs and edge cases"],stack:["Tech stack","Best practice for the tools this project uses"],requirements:["Requirements","Matches the ticket and your project rules"]};
@@ -293,7 +320,11 @@ const PRS=[
  summary:"Two retries arriving together can charge a customer twice, which is the exact problem this change is meant to prevent. Reserve the key in the database before calling Stripe.",
  stack:["TypeScript 5.6","NestJS 11","PostgreSQL 16","Stripe SDK 17"],
  dims:{architecture:"pass",performance:"watch",security:"pass",correctness:"block",stack:"watch",requirements:"watch"},
- stats:{raised:10,rejected:6,kept:4},
+ stats:{raised:11,rejected:6,kept:5},
+ compliance:[
+  {id:"pci",status:"issues",note:"Full card numbers reach the logs."},
+  {id:"gdpr",status:"needs_check",note:"Logs are sent to an outside service. Whether your data processing agreement covers it can't be told from the code."},
+  {id:"soc2",status:"pass",note:"Access checks and audit logging are unchanged."}],
  files:[{path:"src/charges/charge.service.ts",lines:[
   h("Lines 18 to 32"),
   c(18,18,"  async createCharge(req: any, key: string) {"),
@@ -301,7 +332,7 @@ const PRS=[
   d(20,"    return this.db.charges.insert(mapCharge(charge));"),
   a(19,"    const existing = await this.db.idempotency.findOne({ key });"),
   a(20,"    if (existing) return existing.response;"),
-  a(21,""),
+  a(21,"    this.logger.info(`Charging card ${req.card.number}`);"),
   a(22,"    return this.db.transaction(async (tx) => {"),
   a(23,"      const charge = await this.stripe.charges.create({"),
   a(24,"        amount: req.amount,"),
@@ -320,6 +351,12 @@ const PRS=[
    better:"Reserve the key with a unique database constraint first, then charge. Also pass the key to Stripe as a second safety net.",
    code:"const claimed = await this.db.query(\n  `INSERT INTO idempotency_keys (key, request_hash, status)\n   VALUES ($1, $2, 'in_progress')\n   ON CONFLICT (key) DO NOTHING RETURNING key`,\n  [key, hash],\n);\nif (claimed.rowCount === 0) return this.replayOrConflict(key, hash);\n\nconst charge = await this.stripe.charges.create(params, { idempotencyKey: key });\nawait this.saveResult(key, charge);",
    proof:"Double-checked: no unique index on this key exists, and no lock protects this path."},
+  {id:"e",sev:"blocker",dim:"compliance",file:"src/charges/charge.service.ts",line:21,title:"Full card numbers are written to the logs",
+   problem:"The new log line includes the whole card number from the request.",
+   impact:"Card numbers end up in log storage and in every tool that reads it. That brings all of those systems into PCI DSS scope, and counts as exposed card data.",
+   better:"Log the Stripe payment method ID instead. If you need the card, log only the last four digits.",
+   code:"this.logger.info(`Charging payment method ${req.source}`);",
+   proof:"Double-checked: the logger has no redaction rule for this field.",controls:["PCI DSS 3.5.1","GDPR Art. 32"]},
   {id:"b",sev:"major",dim:"performance",file:"src/charges/charge.service.ts",line:23,title:"Slow Stripe calls will tie up the database",
    problem:"The Stripe request runs inside a database transaction, so a connection stays busy for the whole network call.",
    impact:"With 20 connections and calls near 800 ms, you top out around 25 charges a second. If Stripe slows down, unrelated endpoints stall too.",
@@ -392,6 +429,10 @@ const PRS=[
  stack:["React 19","TypeScript 5.6","react-window 1.8"],
  dims:{architecture:"pass",performance:"watch",security:"pass",correctness:"pass",stack:"pass",requirements:"pass"},
  stats:{raised:5,rejected:4,kept:1},
+ compliance:[
+  {id:"wcag",status:"pass",note:"The new grid keeps keyboard focus and screen reader labels."},
+  {id:"csp",status:"not_applicable",note:"No headers, scripts or styles changed."},
+  {id:"soc2",status:"not_applicable",note:"Front-end layout only."}],
  files:[{path:"src/catalog/ProductGrid.tsx",lines:[
   h("Lines 12 to 21"),
   d(13,"  return products.map((p) => <ProductCard key={p.id} product={p} />);"),
@@ -454,8 +495,41 @@ const PRS=[
  stats:{raised:1,rejected:1,kept:0},files:[{path:"package.json",lines:[h("Line 24"),d(24,'    "pg": "8.12.0",'),a(24,'    "pg": "8.13.0",')]}],findings:[],requirements:[],guidelines:["CONTRIBUTING.md"],
  rejected:[{t:"Breaking change in pool defaults",why:"None of the options this project sets are affected."}]}
 ];
-const PROJECTS={"*":{docs:[],rules:[]}};
-PRS.forEach(p=>{if(!PROJECTS[p.repo])PROJECTS[p.repo]={docs:[],rules:[]}});
+/* Standards. "ready" ones can be checked in this release. The rest are listed as coming next. */
+const STANDARDS=[
+ {id:"soc2",name:"SOC 2",cat:"Security and audit",region:"Global",ver:"Trust Services Criteria",sum:"Access control, audit logging, encryption, secrets and change management.",ready:1},
+ {id:"iso27001",name:"ISO/IEC 27001",cat:"Security and audit",region:"Global",ver:"2022, Annex A",sum:"Secure coding, logging, cryptography and access control from Annex A.",ready:1},
+ {id:"ssdf",name:"NIST Secure Software Development Framework",cat:"Security and audit",region:"US",ver:"SP 800-218",sum:"Secure development practices, and dependency and secret hygiene.",ready:1},
+ {id:"pci",name:"PCI DSS",cat:"Payments and finance",region:"Global",ver:"v4.0.1",sum:"Card numbers: storage, masking, logging and encryption.",ready:1},
+ {id:"hipaa",name:"HIPAA Security Rule",cat:"Healthcare",region:"US",ver:"45 CFR 164, Subpart C",sum:"Health data: access, audit trails, integrity and encrypted transfer.",ready:1},
+ {id:"gdpr",name:"GDPR",cat:"Privacy",region:"EU, UK",ver:"Regulation 2016/679",sum:"Consent, data minimisation, deletion and export, retention, and personal data in logs.",ready:1},
+ {id:"ccpa",name:"CCPA and CPRA",cat:"Privacy",region:"California",ver:"Civil Code 1798.100",sum:"Opt-out of sale and sharing, deletion requests and sensitive data.",ready:1},
+ {id:"dpdp",name:"Digital Personal Data Protection Act",cat:"Privacy",region:"India",ver:"2023 Act",sum:"Consent and notice, purpose limits, erasure and breach handling.",ready:1},
+ {id:"csp",name:"Content Security Policy and security headers",cat:"Web and API security",region:"Web",ver:"CSP Level 3",sum:"Script sources, unsafe-inline and unsafe-eval, HSTS, framing, cookie flags and CORS.",ready:1},
+ {id:"owasp10",name:"OWASP Top 10",cat:"Web and API security",region:"Global",ver:"Latest edition",sum:"Injection, broken access control, cryptography failures and the other top web risks.",ready:1},
+ {id:"asvs",name:"OWASP Application Security Verification Standard",cat:"Web and API security",region:"Global",ver:"ASVS 5.0",sum:"Detailed security requirements, checked at the level you choose.",ready:1},
+ {id:"api10",name:"OWASP API Security Top 10",cat:"Web and API security",region:"Global",ver:"2023",sum:"Object and property authorisation, rate limits and mass assignment.",ready:1},
+ {id:"wcag",name:"WCAG 2.2, level AA",cat:"Accessibility",region:"Global",ver:"W3C Recommendation",sum:"Alt text, labels, keyboard access, focus and ARIA use.",ready:1},
+ {id:"slsa",name:"SLSA and SBOM",cat:"Software supply chain",region:"Global",ver:"SLSA 1.0",sum:"Pinned dependencies, lockfiles, build provenance and install scripts.",ready:1},
+ {id:"llm10",name:"OWASP Top 10 for LLM Applications",cat:"AI",region:"Global",ver:"2025",sum:"Prompt injection, unsafe output handling, excessive agency and data leaks.",ready:1},
+ ...[["NIST Cybersecurity Framework 2.0","Security and audit","US"],["NIST SP 800-53","Security and audit","US"],["CIS Controls","Security and audit","Global"],["CSA STAR and Cloud Controls Matrix","Security and audit","Global"],["FIPS 140-3 cryptography","Security and audit","US"],["FedRAMP","Security and audit","US"],["CMMC 2.0 and NIST SP 800-171","Security and audit","US"],["CJIS Security Policy","Security and audit","US"],["NIS2 Directive","Security and audit","EU"],["Cyber Resilience Act","Security and audit","EU"],["Cyber Essentials","Security and audit","UK"],["Essential Eight","Security and audit","Australia"],
+     ["SOX IT general controls","Payments and finance","US"],["GLBA Safeguards Rule","Payments and finance","US"],["PSD2 strong customer authentication","Payments and finance","EU"],["DORA","Payments and finance","EU"],["SWIFT Customer Security Programme","Payments and finance","Global"],["PCI Secure Software Standard","Payments and finance","Global"],
+     ["HITRUST CSF","Healthcare","US"],["FDA 21 CFR Part 11","Healthcare","US"],["IEC 62304","Healthcare","Global"],
+     ["LGPD","Privacy","Brazil"],["PIPEDA","Privacy","Canada"],["PDPA","Privacy","Singapore"],["APPI","Privacy","Japan"],["COPPA","Privacy","US"],["FERPA","Privacy","US"],
+     ["European Accessibility Act","Accessibility","EU"],["Section 508","Accessibility","US"],["ADA Title II","Accessibility","US"],
+     ["EU AI Act","AI","EU"],["ISO/IEC 42001","AI","Global"],["NIST AI Risk Management Framework","AI","US"],
+     ["OWASP MASVS (mobile)","Web and API security","Global"],["CWE Top 25","Web and API security","Global"],
+     ["MISRA C","Safety-critical","Global"],["SEI CERT coding standards","Safety-critical","Global"],["ISO 26262","Safety-critical","Global"],["ISO/SAE 21434","Safety-critical","Global"],["IEC 62443","Safety-critical","Global"]]
+   .map(([name,cat,region],i)=>({id:"later"+i,name,cat,region,ver:"",sum:"",ready:0}))];
+const STD=Object.fromEntries(STANDARDS.map(x=>[x.id,x]));
+const STD_SHORT={soc2:"SOC 2",iso27001:"ISO 27001",ssdf:"NIST SSDF",pci:"PCI DSS",hipaa:"HIPAA",gdpr:"GDPR",ccpa:"CCPA",dpdp:"DPDP Act",csp:"CSP and headers",owasp10:"OWASP Top 10",asvs:"OWASP ASVS",api10:"OWASP API Top 10",wcag:"WCAG 2.2",slsa:"SLSA and SBOM",llm10:"OWASP LLM Top 10"};
+const COMP_RESULT={issues:["Has issues","c-red"],pass:["Passed","c-green"],needs_check:["Needs a person to check","c-amber"],not_applicable:["Not affected","c-muted"]};
+
+const PROJECTS={"*":{docs:[],rules:[],std:[]}};
+PRS.forEach(p=>{if(!PROJECTS[p.repo])PROJECTS[p.repo]={docs:[],rules:[],std:[]}});
+PROJECTS["*"].std.push({id:"soc2",level:"must"});
+PROJECTS["northwind/payments-api"].std.push({id:"pci",level:"must"},{id:"gdpr",level:"must"});
+PROJECTS["northwind/storefront"].std.push({id:"wcag",level:"must"},{id:"csp",level:"rec"});
 let docSeq=1;
 PROJECTS["northwind/payments-api"].docs.push({id:"d"+docSeq++,name:"Payments API Standards.pdf",size:2516582,level:"must",on:true,status:"ready",added:"Added 3 days ago"});
 PROJECTS["northwind/payments-api"].rules.push("Amounts are always stored in minor units, never as floats.");
@@ -478,7 +552,9 @@ const ICON={
  cross:s=>`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>`,
  warn:s=>`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.800" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 14.500 13.500h-13z"/><path d="M8 6.500v3M8 11.500v.01"/></svg>`,
  ask:s=>`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.800" stroke-linecap="round"><circle cx="8" cy="8" r="6.500"/><path d="M6 6.200a2 2 0 1 1 3 1.700c-.7.400-1 .8-1 1.500M8 11.700v.01"/></svg>`,
- doc:s=>`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.500" stroke-linejoin="round"><path d="M4 1.500h5.500L12.500 4.500v10h-8.500z"/><path d="M6.500 8h3.500M6.500 11h3.500"/></svg>`
+ doc:s=>`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.500" stroke-linejoin="round"><path d="M4 1.500h5.500L12.500 4.500v10h-8.500z"/><path d="M6.500 8h3.500M6.500 11h3.500"/></svg>`,
+ link:s=>`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.600" stroke-linecap="round"><path d="M6.800 9.200a2.800 2.800 0 0 0 4 0l2.200-2.200a2.800 2.800 0 0 0-4-4l-.900.900"/><path d="M9.200 6.800a2.800 2.800 0 0 0-4 0L3 9a2.800 2.800 0 0 0 4 4l.900-.900"/></svg>`,
+ shield:s=>`<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.500" stroke-linejoin="round"><path d="M8 1.500 13.500 3.500v4c0 3.300-2.300 5.800-5.500 7-3.200-1.200-5.500-3.700-5.500-7v-4z"/><path d="m5.800 8 1.600 1.600L10.400 6.500" stroke-linecap="round"/></svg>`
 };
 const VERDICT_ICON={request_changes:ICON.cross,needs_discussion:ICON.ask,approve_with_comments:ICON.check,approve:ICON.check};
 
@@ -514,7 +590,8 @@ function viewReviews(){
    <h1 class="page-title" tabindex="-1" id="vh">${ready?`${plural(ready,"review")} need${ready===1?"s":""} your decision`:"You're all caught up"}</h1>
    <p class="page-sub">Anything assigned to you appears here and gets reviewed automatically.</p>
    <div class="tools"><input class="input" id="q" placeholder="Search by title, project or person" aria-label="Search reviews" value="${esc(S.q)}">
-    <select class="input" id="acctFilter" aria-label="Filter by account"><option value="all">All accounts</option>${accts.map(k=>`<option value="${k}" ${S.acct===k?"selected":""}>${PROV[k].name}</option>`).join("")}</select></div>
+    <select class="input" id="acctFilter" aria-label="Filter by account"><option value="all">All accounts</option>${accts.map(k=>`<option value="${k}" ${S.acct===k?"selected":""}>${PROV[k].name}</option>`).join("")}</select>
+    <button class="btn" data-a="linkdlg">${ICON.link(16)}Review by link</button></div>
    <div id="homeList">${homeList()}</div></div>`;
 }
 function homeList(){
@@ -523,11 +600,11 @@ function homeList(){
   if(!v.length) return `<div class="empty"><b>${q||S.acct!=="all"?"No matches":"Nothing assigned to you"}</b>${q||S.acct!=="all"?"Try a different search or account.":"New requests will show up here on their own."}</div>`;
   const row=p=>{
     let end;
-    if(p.state==="ready"){const n=keep(p).length;end=`<span class="outcome c-${TONE[p.verdict]}">${VERDICT_ICON[p.verdict](15)}${WORD[p.verdict]}</span><span class="row-count">${n?plural(n,"issue"):"No issues"}</span>`}
+    if(p.state==="ready"){const n=keep(p).length;end=`<span class="outcome c-${TONE[p.verdict]}">${VERDICT_ICON[p.verdict](15)}${verdictWord(p)}</span><span class="row-count">${n?plural(n,"issue"):"No issues"}</span>`}
     else if(p.state==="running") end=`<span class="outcome c-accent" data-pt="${p.id}">Reviewing… ${p.progress}%</span><div class="bar"><i data-pb="${p.id}" style="width:${p.progress}%"></i></div>`;
     else if(p.state==="queued") end=`<span class="outcome c-muted">Up next</span>`;
     else end=`<span class="outcome c-muted">${ICON.check(15)}Review sent</span>`;
-    return `<button class="row" data-a="open" data-v="${p.id}"><span class="row-main"><span class="row-title" style="display:block">${esc(p.title)}</span><span class="row-meta" style="display:block">${esc(short(p.repo))} ${ref(p)} · ${esc(p.author)} · ${p.age}</span></span><span class="row-end">${end}</span></button>`};
+    return `<button class="row" data-a="open" data-v="${p.id}"><span class="row-main"><span class="row-title" style="display:block">${esc(p.title)} ${p.merged?'<span class="tag">Merged</span>':""}</span><span class="row-meta" style="display:block">${esc(short(p.repo))} ${ref(p)} · ${esc(p.author)} · ${p.age}${p.linked?" · added by link":""}</span></span><span class="row-end">${end}</span></button>`};
   const group=(l,arr)=>arr.length?`<h2 class="section-title">${l}</h2>`+arr.map(row).join(""):"";
   return group("Ready for you",v.filter(p=>p.state==="ready"))+group("Being reviewed",v.filter(p=>p.state==="running"||p.state==="queued"))+group("Finished",v.filter(p=>p.state==="sent"));
 }
@@ -538,13 +615,13 @@ function viewReview(){
   const unit=PROV[p.provider].unit;
   const head=`<button class="back" data-a="nav" data-v="reviews">← Reviews</button>
    <h1 class="rv-title" tabindex="-1" id="vh">${esc(p.title)}</h1>
-   <div class="rv-meta"><span>${esc(short(p.repo))} ${ref(p)}</span><span>${esc(p.author)}</span><span>${p.age}</span>
-    <span class="rv-links"><button class="link" data-a="ext">Open on ${PROV[p.provider].name}</button>${reviewed(p)?`<button class="link" data-a="rerun">Review again</button>`:""}</span></div>`;
+   <div class="rv-meta"><span>${esc(short(p.repo))} ${ref(p)}</span>${p.merged?'<span class="tag">Merged</span>':""}<span>${esc(p.author)}</span><span>${p.age}</span>
+    <span class="rv-links"><button class="link" data-a="ext">Open on ${PROV[p.provider].name}</button>${reviewed(p)?`<button class="link" data-a="rerun">Review again</button>`:""}${p.linked?`<button class="link" data-a="unlink">Remove from list</button>`:""}</span></div>`;
   if(!reviewed(p)) return `<div class="col">${head}<div id="runBox">${runBox(p)}</div></div>`;
   const tone=TONE[p.verdict];
   const sentNote=p.state==="sent"?`<small>${ICON.check(12)} You sent this review to ${PROV[p.provider].name} as “${SEND[p.sentAs][0]}”.</small>`:
     `<small>${plural(p.stats.kept,"issue")} confirmed. ${p.stats.rejected} false alarm${p.stats.rejected===1?"":"s"} removed before you saw ${p.stats.rejected===1?"it":"them"}. <button class="link" data-a="tab" data-v="checked">See how it was checked</button></small>`;
-  const answer=`<section class="answer" style="--tone:var(--${tone});--tone-soft:var(--${tone}-soft)"><div class="answer-word">${VERDICT_ICON[p.verdict](20)}${WORD[p.verdict]}</div><p>${esc(p.summary)}</p>${sentNote}</section>`;
+  const answer=`<section class="answer" style="--tone:var(--${tone});--tone-soft:var(--${tone}-soft)"><div class="answer-word">${VERDICT_ICON[p.verdict](20)}${verdictWord(p)}</div><p>${esc(p.summary)}</p>${compLine(p)}${sentNote}</section>`;
   const tab=S.tab[p.id]||"issues";
   const tabs=[["issues",`Issues (${p.findings.length})`],["reqs","Requirements"],["code","Code changes"],["checked","How it was checked"]];
   const bar=tabs.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${tab===k}" data-a="tab" data-v="${k}">${l}</button>`).join("");
@@ -552,6 +629,14 @@ function viewReview(){
   const n=keep(p).length;
   const send=p.state==="ready"?`<div class="send-bar"><span>${n?`${plural(n,"comment")} will be sent on ${unit==="MR"?"this merge request":"this pull request"}.`:"Nothing is sent until you choose."}</span><button class="btn primary" data-a="send">Send review…</button></div>`:"";
   return `<div class="scroll" id="sc"><div class="col">${head}${answer}<div class="tabs" role="tablist">${bar}</div><div class="tab-body">${body}</div></div></div>${send}`;
+}
+/* One line per standard on the verdict card. Standards this change doesn't touch are left out to keep it short. */
+function compLine(p){
+  const shown=(p.compliance||[]).filter(c=>c.status!=="not_applicable");
+  if(!shown.length) return "";
+  const word={issues:n=>`<span class="c-red">${plural(n,"issue")}</span>`,pass:()=>`<span class="c-green">passed</span>`,needs_check:()=>`<span class="c-amber">needs a check</span>`};
+  return `<div class="comp-line">${ICON.shield(15)}${shown.map(c=>{const n=p.findings.filter(f=>(f.controls||[]).some(x=>x.startsWith(STD_SHORT[c.id]))).length||1;
+    return `<span><b>${esc(STD_SHORT[c.id])}</b> ${word[c.status](n)}</span>`}).join("")}<button class="link" data-a="tab" data-v="checked">Details</button></div>`;
 }
 function runBox(p){
   if(p.state==="queued") return `<section class="answer" style="--tone:var(--text-2);--tone-soft:var(--card-2)"><div class="answer-word">Up next</div><p>This review starts when the current one finishes. They run one at a time to protect your Claude usage limits.</p></section>`;
@@ -579,9 +664,10 @@ function snippet(p,f){
   while(lines.length&&!lines[lines.length-1].t.trim()) lines.pop();
   return `<div class="code-head"><span>${esc(f.file.split("/").pop())}, line ${f.line}</span></div><pre class="code">${lines.map(l=>`<span class="ln ${l.n===f.line?"hit":""}">${highlight(l.t)||" "}</span>`).join("")}</pre>`;
 }
-const commentText=(f)=>`${f.problem}\n\n${f.better}`;
+const commentText=(f)=>`${f.problem}\n\n${f.better}`+(f.controls?`\n\nRelated controls: ${f.controls.join(", ")}`:"");
 function issueBody(p,f,key,off){
-  const source=f.rule?`<div class="source">${ICON.doc(14)}<span>${f.ruleDoc?"From your document: ":"Based on: "}${esc(f.rule)}</span></div>`:"";
+  const source=(f.rule?`<div class="source">${ICON.doc(14)}<span>${f.ruleDoc?"From your document: ":"Based on: "}${esc(f.rule)}</span></div>`:"")+
+    (f.controls?`<div class="source">${ICON.shield(14)}<span>Breaks ${f.controls.map(x=>`<span class="ctl">${esc(x)}</span>`).join("")}</span></div>`:"");
   const edit=S.editing[key]?`<form class="inline-form" data-form="edit" data-v="${key}"><label class="field" style="margin:0">Your comment<textarea class="input" rows="4" name="t">${esc(S.edit[key]||commentText(f))}</textarea></label><div class="acts"><button class="btn small primary">Save</button><button class="btn small" type="button" data-a="editclose">Cancel</button></div></form>`:(S.edit[key]?`<div class="qa"><b>Your edited comment</b><span style="white-space:pre-wrap">${esc(S.edit[key])}</span></div>`:"");
   const asks=(S.asks[key]||[]).map(x=>`<div class="qa"><b>${esc(x.q)}</b><span>${esc(x.a)}</span></div>`).join("");
   const ask=S.asking[key]?`<form class="inline-form" data-form="ask" data-v="${key}"><input class="input" name="q" placeholder="For example: is this really a problem at our traffic?" aria-label="Your question" autocomplete="off"><div class="acts"><button class="btn small primary">Ask</button><button class="btn small" type="button" data-a="askclose">Close</button></div></form>`:"";
@@ -620,7 +706,10 @@ function codeTab(p){
   }).join("")}</div></div>`).join("");
 }
 function checkedTab(p){
-  return `<h2 class="section-title">What was checked</h2><div class="list">${Object.keys(AREA).map(k=>{const[r,cl]=AREA_RESULT[p.dims[k]];return `<div class="li center"><div class="li-main"><b>${AREA[k][0]}</b><small>${AREA[k][1]}</small></div><div class="li-end"><span class="${cl}" style="font-weight:500">${r}</span></div></div>`}).join("")}</div>
+  const comp=(p.compliance||[]).length?`<h2 class="section-title">Compliance and standards</h2><div class="list">${p.compliance.map(c=>{const[r,cl]=COMP_RESULT[c.status];
+    return `<div class="li"><span class="icon c-muted">${ICON.shield(16)}</span><div class="li-main"><b>${esc(STD[c.id].name)}</b><small>${esc(c.note)}</small></div><div class="li-end"><span class="${cl}" style="font-weight:500">${r}</span></div></div>`}).join("")}</div>
+   <p class="note">Checked against each standard's code-level controls. This doesn't make the project compliant or replace an audit.</p>`:"";
+  return `${comp}<h2 class="section-title">What was checked</h2><div class="list">${Object.keys(AREA).map(k=>{const[r,cl]=AREA_RESULT[p.dims[k]];return `<div class="li center"><div class="li-main"><b>${AREA[k][0]}</b><small>${AREA[k][1]}</small></div><div class="li-end"><span class="${cl}" style="font-weight:500">${r}</span></div></div>`}).join("")}</div>
    <h2 class="section-title">Reviewed as</h2><div class="chips">${p.stack.map(x=>`<span class="chip">${esc(x)}</span>`).join("")}</div>
    <h2 class="section-title">How issues were confirmed</h2><p style="color:var(--text-2)">Specialists raised ${plural(p.stats.raised,"possible issue")}. A separate reviewer then tried to prove each one wrong: ${p.stats.rejected} ${p.stats.rejected===1?"was":"were"} ruled out and ${p.stats.kept} held up.</p>
    <details class="more"><summary>Show what was ruled out (${p.rejected.length})</summary><div class="list" style="margin-top:6px">${p.rejected.map(r=>`<div class="li"><div class="li-main"><b>${esc(r.t)}</b><small>${esc(r.why)}</small></div></div>`).join("")}</div></details>`;
@@ -629,8 +718,8 @@ function checkedTab(p){
 /* Projects */
 function viewProjects(){
   const repos=Object.keys(PROJECTS).filter(r=>r!=="*");
-  const row=r=>{const pj=PROJECTS[r],n=pj.docs.length,m=pj.rules.length;const open=PRS.find(p=>p.repo===r);
-    return `<button class="li li-btn center" data-a="goproject" data-v="${esc(r)}"><div class="li-main"><b>${r==="*"?"All projects":esc(short(r))}</b><small>${r==="*"?"Rules that apply to every review":esc(open.stack.slice(0,3).join(", "))}</small></div><div class="li-end c-muted">${n||m?[n?plural(n,"document"):"",m?plural(m,"rule"):""].filter(Boolean).join(", "):"No documents yet"}</div></button>`};
+  const row=r=>{const pj=PROJECTS[r],n=pj.docs.length,m=pj.rules.length,s=pj.std.length;const open=PRS.find(p=>p.repo===r);
+    return `<button class="li li-btn center" data-a="goproject" data-v="${esc(r)}"><div class="li-main"><b>${r==="*"?"All projects":esc(short(r))}</b><small>${r==="*"?"Rules that apply to every review":esc(open.stack.slice(0,3).join(", "))}</small></div><div class="li-end c-muted">${n||m||s?[s?plural(s,"standard"):"",n?plural(n,"document"):"",m?plural(m,"rule"):""].filter(Boolean).join(", "):"No documents yet"}</div></button>`};
   return `<div class="col"><h1 class="page-title" tabindex="-1" id="vh">Projects</h1>
    <p class="page-sub">Tell the reviewer how each project should be built. Add your coding standards, architecture notes or any other guideline documents.</p>
    <h2 class="section-title">Your projects</h2><div class="list">${repos.map(row).join("")}</div>
@@ -649,11 +738,23 @@ function viewProject(){
       <button class="switch" role="switch" aria-checked="${x.on}" aria-label="Use ${esc(x.name)} in reviews" data-a="docon" data-v="${x.id}"></button>
       <button class="link" data-a="docrm" data-v="${x.id}" aria-label="Remove ${esc(x.name)}">Remove</button></div>`}</div>`};
   const notice=S.justAdded&&S.justAdded.repo===r&&openCount?`<div class="notice"><span>“${esc(S.justAdded.name)}” is ready. New reviews will use it. Check ${plural(openCount,"open review")} again with it too?</span><button class="btn small" data-a="recheck">Review again</button></div>`:"";
+  const stdNotice=S.stdAdded&&S.stdAdded.repo===r&&openCount?`<div class="notice"><span>New reviews will check ${esc(S.stdAdded.names)}. Check ${plural(openCount,"open review")} again with ${S.stdAdded.n===1?"it":"them"} too?</span><button class="btn small" data-a="recheck">Review again</button></div>`:"";
+  const stdRow=x=>{const s=STD[x.id];
+    return `<div class="li center"><span class="std-badge" aria-hidden="true">${ICON.shield(18)}</span><div class="li-main"><b>${esc(s.name)}</b><small>${esc(s.ver)} · ${esc(s.region)}</small></div>
+     <div class="li-end"><select class="mini" data-c="stdlevel" data-v="${x.id}" aria-label="How strictly to apply ${esc(s.name)}"><option value="must" ${x.level==="must"?"selected":""}>Must follow</option><option value="rec" ${x.level==="rec"?"selected":""}>Recommended</option></select>
+      <button class="link" data-a="stdrm" data-v="${x.id}" aria-label="Remove ${esc(s.name)}">Remove</button></div></div>`};
+  const inherited=isAll?[]:PROJECTS["*"].std.filter(x=>!pj.std.some(y=>y.id===x.id));
+  const standards=`<h2 class="section-title">Compliance and standards</h2>
+   <div class="list">${pj.std.map(stdRow).join("")}
+    <button class="li li-btn center" data-a="stdpicker"><div class="li-main"><b>Add standards</b><small>${pj.std.length?"Certifications, laws and security policies":"Such as SOC 2, PCI DSS, GDPR or Content Security Policy"}</small></div><span class="c-muted">+</span></button></div>
+   ${stdNotice}
+   <p class="note">${inherited.length?`Also checked, from All projects: ${esc(inherited.map(x=>STD[x.id].name).join(", "))}. `:""}Reviews check the code against each standard's controls. This doesn't make the project compliant or replace an audit, and it uses a little more of your Claude limit.</p>`;
   const found=isAll?"":[...new Set(sample.flatMap(p=>p.guidelines))];
   const stack=isAll?"":sample[0].stack;
   return `<div class="col"><button class="back" data-a="nav" data-v="projects">← Projects</button>
    <h1 class="page-title" tabindex="-1" id="vh">${isAll?"All projects":esc(short(r))}</h1>
-   <p class="page-sub">${isAll?"Documents here apply to every review, in every project.":"Every review of this project is checked against these guidelines."}</p>
+   <p class="page-sub">${isAll?"Standards and documents here apply to every review, in every project.":"Every review of this project is checked against these guidelines."}</p>
+   ${standards}
    <h2 class="section-title">Guideline documents</h2>
    <div class="drop" id="drop"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.600" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V5M7.500 9.500 12 5l4.500 4.500"/><path d="M4 15v4h16v-4"/></svg>
     <b>Drop documents here</b><small>PDF, Word, Markdown or text, up to 25 MB each</small>
@@ -725,7 +826,7 @@ function render(){
   bindDrop();
 }
 function safeRender(){ const ae=document.activeElement; if(ae&&/INPUT|TEXTAREA/.test(ae.tagName)){S.dirty=true;renderSide();return} render(); }
-function nav(v,extra){ S.view=v; Object.assign(S,extra||{}); S.keepScroll=false; S.focusHead=true; S.uploadError=""; S.justAdded=null;
+function nav(v,extra){ S.view=v; Object.assign(S,extra||{}); S.keepScroll=false; S.focusHead=true; S.uploadError=""; S.justAdded=null; S.stdAdded=null;
   try{history.replaceState(null,"","#"+[v,S.view==="review"?S.sel:S.view==="project"?encodeURIComponent(S.project):""].filter(Boolean).join("/"))}catch(e){}
   render(); }
 function bindDrop(){
@@ -739,14 +840,101 @@ function toast(msg,action,fn){
   t.classList.add("on"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"),action?7000:3500);
   if(action) $("toastBtn").onclick=()=>{t.classList.remove("on");fn()};
 }
-function openDlg(html){ const g=$("dlg"); g.innerHTML=html; if(!g.open) g.showModal(); }
+function openDlg(html,wide){ const g=$("dlg"); g.innerHTML=html; g.classList.toggle("wide",!!wide); if(!g.open) g.showModal(); }
+
+/* Standards picker */
+function stdDlg(){
+  const r=S.project; S.pick={q:"",sel:new Set()};
+  openDlg(`<div class="d-head"><h2>Add standards</h2><p>${r==="*"?"Choose what every review must check.":`Choose what reviews of ${esc(short(r))} must check.`}</p></div>
+  <div class="d-body"><input class="input" id="stdQ" placeholder="Search, such as PCI, privacy or India" aria-label="Search standards" autocomplete="off"><div class="pick-list" id="stdList"></div>
+  <p class="note">Checks the code against each standard's controls. It doesn't make you compliant or replace an audit.</p></div>
+  <div class="d-foot"><span class="grow" id="stdCount"></span><button class="btn" data-a="dlgclose">Cancel</button><button class="btn primary" data-a="stdadd" id="stdAdd" disabled>Add</button></div>`,true);
+  renderPicker(); $("stdQ").focus();
+}
+function renderPicker(){
+  const pj=PROJECTS[S.project], have=new Set(pj.std.map(x=>x.id)), q=S.pick.q.trim().toLowerCase();
+  const match=x=>!q||[x.name,STD_SHORT[x.id]||"",x.cat,x.region,x.sum].join(" ").toLowerCase().includes(q);
+  let html=[...new Set(STANDARDS.map(x=>x.cat))].map(c=>{
+    const items=STANDARDS.filter(x=>x.cat===c&&x.ready&&match(x)); if(!items.length) return "";
+    return `<div class="pick-cat">${esc(c)}</div>`+items.map(x=>{const added=have.has(x.id), on=added||S.pick.sel.has(x.id);
+      return `<label class="pick ${added?"added":""}"><input type="checkbox" data-c="stdpick" value="${x.id}" ${on?"checked":""} ${added?"disabled":""}><span><b>${esc(x.name)}</b><span class="region">${esc(x.region)}</span><small>${added?"Already added":esc(x.sum)}</small></span></label>`}).join("");
+  }).join("");
+  const later=STANDARDS.filter(x=>!x.ready&&match(x));
+  if(later.length) html+=`<details class="more" style="margin:14px 10px 6px" ${q&&!html?"open":""}><summary>Coming in the next update (${later.length})</summary><div class="chips" style="margin-top:8px">${later.map(x=>`<span class="chip">${esc(x.name)} · ${esc(x.region)}</span>`).join("")}</div></details>`;
+  $("stdList").innerHTML=html||`<div class="empty" style="border:0;background:none;padding:28px">Nothing matches “${esc(S.pick.q)}”.</div>`;
+  pickerCount();
+}
+/* Review by link. Works for open, closed and merged changes on any connected account. */
+function parseLink(raw){
+  const s=raw.trim(); if(!s) return null;
+  let u; try{u=new URL(/^https?:\/\//i.test(s)?s:"https://"+s)}catch(e){return {err:"Paste the full link to a pull request or merge request."}}
+  const parts=u.pathname.split("/").filter(Boolean), dash=parts.indexOf("-");
+  let found=null;
+  if(dash>=2&&parts[dash+1]==="merge_requests"&&/^\d+$/.test(parts[dash+2]||"")) found={provider:"gitlab",repo:parts.slice(0,dash).join("/"),num:+parts[dash+2]};
+  else if(parts.length>=4&&parts[2]==="pull"&&/^\d+$/.test(parts[3])) found={provider:"github",repo:parts[0]+"/"+parts[1],num:+parts[3]};
+  else if(parts.length>=4&&parts[2]==="pull-requests") return {err:"Bitbucket links aren't supported yet."};
+  if(!found) return {err:"This doesn't look like a link to a pull request or merge request."};
+  const host=u.host.toLowerCase();
+  // The account decides the service, so company servers on any address work.
+  const acct=S.accounts.find(a=>a.on&&a.host===host);
+  if(!acct) return {err:`No account for ${host} is connected. Connect it in Settings first, so Code Reviewer can read this ${found.provider==="gitlab"?"merge request":"pull request"}.`};
+  if(acct.p!==found.provider) return {err:`${host} is connected as ${PROV[acct.p].name}, but this is a ${PROV[found.provider].name} link.`};
+  const existing=PRS.find(p=>p.provider===found.provider&&p.repo===found.repo&&p.num===found.num);
+  return {...found,host,existing};
+}
+function linkDlg(){
+  openDlg(`<form data-form="link"><div class="d-head"><h2>Review by link</h2><p>Paste a link to any pull request or merge request you can access, open or already merged. It's reviewed next, ahead of the queue.</p></div>
+  <div class="d-body"><input class="input" id="linkIn" placeholder="https://github.com/owner/repo/pull/123" aria-label="Pull request or merge request link" autocomplete="off" spellcheck="false">
+  <div class="link-info" id="linkInfo" role="status"></div></div>
+  <div class="d-foot"><button class="btn" type="button" data-a="dlgclose">Cancel</button><button class="btn primary" id="linkGo" disabled>Review</button></div></form>`);
+  $("linkIn").focus();
+}
+function linkInfo(){
+  const r=parseLink($("linkIn").value), box=$("linkInfo"), go=$("linkGo");
+  box.className="link-info"; go.disabled=true; go.textContent="Review";
+  if(!r){box.innerHTML="";return}
+  if(r.err){box.classList.add("bad");box.innerHTML=`${ICON.warn(15)}<span>${esc(r.err)}</span>`;return}
+  box.classList.add("good");
+  if(r.existing){box.innerHTML=`${ICON.check(15)}<span>Already in your list: ${esc(r.existing.title)}</span>`;go.disabled=false;go.textContent="Open it";return}
+  box.innerHTML=`${ICON.check(15)}<span>${PROV[r.provider].name} · ${esc(r.repo)} ${PROV[r.provider].sym}${r.num}</span>`; go.disabled=false;
+}
+/* What the sample shows after a link is added: an already-merged change with problems found afterwards. */
+function linkedSample(r){
+  return {id:"lnk"+r.num,provider:r.provider,repo:r.repo,num:r.num,author:"Alex Kim",age:"merged 3 weeks ago",state:"running",progress:2,merged:true,linked:true,
+   title:"Add customer data export for admins",verdict:"request_changes",
+   summary:"Any signed-in user can download every customer's personal data, and nothing records who did. This is already merged and live, so fix it in a follow-up change now.",
+   stack:["TypeScript 5.6","Express 5"],
+   dims:{architecture:"pass",performance:"pass",security:"block",correctness:"pass",stack:"pass",requirements:"watch"},
+   stats:{raised:5,rejected:3,kept:2},
+   compliance:[{id:"gdpr",status:"issues",note:"Personal data is open to every signed-in user."},{id:"soc2",status:"issues",note:"Access isn't restricted, and downloads aren't logged."},{id:"pci",status:"not_applicable",note:"No card data in the export."}],
+   files:[{path:"src/admin/export.ts",lines:[h("New file"),a(1,'import { Router } from "express";'),a(2,'import { requireUser } from "../auth";'),a(3,'import { customersCsv } from "./customers";'),a(4,""),a(5,"export const router = Router();"),a(6,""),
+     a(7,'router.get("/admin/export", requireUser, async (req, res) => {'),a(8,"  const csv = await customersCsv();"),a(9,'  res.attachment("customers.csv").send(csv);'),a(10,"});")]}],
+   findings:[
+    {id:"a",sev:"blocker",dim:"security",file:"src/admin/export.ts",line:7,title:"Any signed-in user can download every customer's data",
+     problem:"The route checks that someone is signed in, but not that they're an admin.",
+     impact:"Every customer account can export the full customer list, including names, emails and addresses.",
+     better:"Use the requireRole middleware that the other admin routes use.",code:'router.get("/admin/export", requireRole("admin"), async (req, res) => {',
+     proof:"Double-checked: every other route under /admin uses requireRole.",controls:["SOC 2 CC6.1","GDPR Art. 32"]},
+    {id:"b",sev:"major",dim:"compliance",file:"src/admin/export.ts",line:9,title:"Nobody can tell who downloaded the data",
+     problem:"The export isn't written to the audit log.",
+     impact:"If the file leaks, you can't tell who took a copy or when, which auditors and breach investigations both need.",
+     better:"Record an audit event with the user, the time and the number of rows before sending the file.",
+     proof:"Double-checked: other admin actions call auditLog.record.",controls:["SOC 2 CC7.2"]}],
+   requirements:[{r:"Admins can download all customers as CSV",src:"PR description",st:"met",ev:"The route returns a CSV file."}],
+   guidelines:["CONTRIBUTING.md"],
+   rejected:[{t:"The CSV could be too large",why:"The table has 40,000 rows, well within memory."},{t:"Formula injection in CSV cells",why:"customersCsv already escapes leading = + - @."},{t:"Missing rate limit",why:"The admin router has one."}]};
+}
+function pickerCount(){ const n=S.pick.sel.size; $("stdCount").textContent=n?`${plural(n,"standard")} selected`:""; $("stdAdd").disabled=!n; $("stdAdd").textContent=n?`Add ${n}`:"Add"; }
 function closeDlg(){ const g=$("dlg"); if(g.open) g.close(); }
 
 function sendDlg(){
   const p=pr(), n=keep(p).length, dis=p.findings.length-n;
-  const pre=p.verdict==="request_changes"?"request_changes":p.verdict==="needs_discussion"?"comment":"approve";
+  // A merged change can only get comments: approving or requesting changes no longer does anything.
+  const pre=p.merged?"comment":p.verdict==="request_changes"?"request_changes":p.verdict==="needs_discussion"?"comment":"approve";
+  const kinds=p.merged?["comment"]:Object.keys(SEND);
+  const mergedNote=p.merged?`<p class="note" style="margin:0 0 10px">This ${PROV[p.provider].unit==="MR"?"merge request":"pull request"} is already merged, so it can only get comments. Fixes will need a new change.</p>`:"";
   openDlg(`<div class="d-head"><h2>Send your review</h2><p>To ${esc(short(p.repo))} ${ref(p)} on ${PROV[p.provider].name}, under your name.</p></div>
-  <div class="d-body">${Object.keys(SEND).map(k=>`<label class="choice"><input type="radio" name="sendas" value="${k}" ${k===pre?"checked":""}><span><b>${SEND[k][0]}${k===pre?" (suggested)":""}</b><small>${SEND[k][1]}</small></span></label>`).join("")}
+  <div class="d-body">${mergedNote}${kinds.map(k=>`<label class="choice"><input type="radio" name="sendas" value="${k}" ${k===pre?"checked":""}><span><b>${SEND[k][0]}${k===pre?" (suggested)":""}</b><small>${SEND[k][1]}</small></span></label>`).join("")}
   <p style="font-size:14px;color:var(--text-2);margin-top:12px">Includes the summary and ${plural(n,"comment")}.${dis?` ${plural(dis,"issue")} you turned off won't be sent.`:""}</p></div>
   <div class="d-foot"><button class="btn" data-a="dlgclose">Cancel</button><button class="btn primary" data-a="confirmsend" autofocus>Send review</button></div>`);
 }
@@ -766,7 +954,7 @@ let palItems=[];
 const ACTIONS=()=>[
   ...PRS.filter(p=>connected(p.provider)).map(p=>({l:p.title,s:`${short(p.repo)} ${ref(p)}`,run:()=>openReview(p.id)})),
   ...Object.keys(PROJECTS).filter(r=>r!=="*").map(r=>({l:`Add guidelines to ${short(r)}`,s:"Project",run:()=>nav("project",{project:r})})),
-  {l:"Reviews",s:"Go to",run:()=>nav("reviews")},{l:"Projects",s:"Go to",run:()=>nav("projects")},{l:"Settings",s:"Go to",run:()=>nav("settings")},{l:"Add an account",s:"Action",run:addAcctDlg},{l:"Keyboard shortcuts",s:"Help",run:keysDlg}];
+  {l:"Reviews",s:"Go to",run:()=>nav("reviews")},{l:"Projects",s:"Go to",run:()=>nav("projects")},{l:"Settings",s:"Go to",run:()=>nav("settings")},{l:"Review a pull request by link",s:"Action",run:linkDlg},{l:"Add an account",s:"Action",run:addAcctDlg},{l:"Keyboard shortcuts",s:"Help",run:keysDlg}];
 function paletteDlg(){ S.palIdx=0; openDlg(`<input class="palette-input" id="palInput" placeholder="Search reviews, projects and actions" aria-label="Search" autocomplete="off"><div class="palette-list" id="palList"></div>`); renderPal(""); $("palInput").focus(); }
 function renderPal(q){ palItems=ACTIONS().filter(x=>(x.l+" "+x.s).toLowerCase().includes(q.toLowerCase())); S.palIdx=Math.min(S.palIdx,Math.max(0,palItems.length-1));
   $("palList").innerHTML=palItems.length?palItems.map((x,i)=>`<button class="pal ${i===S.palIdx?"sel":""}" data-a="palrun" data-v="${i}"><span>${esc(x.l)}</span><small>${esc(x.s)}</small></button>`).join(""):`<div class="empty" style="border:0;background:none">No matches</div>`; }
@@ -816,7 +1004,13 @@ document.addEventListener("click",e=>{
     case "docon": { const x=docById(v); x.on=!x.on; render(); break; }
     case "docrm": { const pj=PROJECTS[S.project], i=pj.docs.findIndex(x=>x.id===v), x=pj.docs[i]; pj.docs.splice(i,1); if(S.justAdded&&S.justAdded.name===x.name) S.justAdded=null; render(); toast(`Removed “${x.name}”.`,"Undo",()=>{pj.docs.splice(i,0,x);render()}); break; }
     case "rulerm": PROJECTS[S.project].rules.splice(+v,1); render(); break;
-    case "recheck": { const ps=PRS.filter(x=>x.state==="ready"&&connected(x.provider)&&(S.project==="*"||x.repo===S.project)); ps.forEach(startRun); const n=ps.length; S.justAdded=null; render(); toast(`Reviewing ${plural(n,"change")} again.`); break; }
+    case "recheck": { const ps=PRS.filter(x=>x.state==="ready"&&connected(x.provider)&&(S.project==="*"||x.repo===S.project)); ps.forEach(startRun); const n=ps.length; S.justAdded=null; S.stdAdded=null; render(); toast(`Reviewing ${plural(n,"change")} again.`); break; }
+    case "stdpicker": stdDlg(); break;
+    case "linkdlg": linkDlg(); break;
+    case "unlink": { const i=PRS.indexOf(p); PRS.splice(i,1); nav("reviews"); toast("Removed from your list.","Undo",()=>{PRS.splice(i,0,p);render()}); break; }
+    case "stdadd": { const pj=PROJECTS[S.project], ids=[...S.pick.sel]; ids.forEach(id=>pj.std.push({id,level:"must"})); closeDlg();
+      S.stdAdded={repo:S.project,n:ids.length,names:ids.map(id=>STD_SHORT[id]).join(", ")}; render(); toast(`Added ${plural(ids.length,"standard")}.`); break; }
+    case "stdrm": { const pj=PROJECTS[S.project], i=pj.std.findIndex(x=>x.id===v), x=pj.std[i]; pj.std.splice(i,1); render(); toast(`Removed ${STD[x.id].name}.`,"Undo",()=>{pj.std.splice(i,0,x);render()}); break; }
     case "opt": S.opts[v]=!S.opts[v]; render(); break;
     case "depth": S.depth=v; render(); break;
     case "theme": setTheme(v); render(); break;
@@ -835,16 +1029,24 @@ document.addEventListener("submit",e=>{
   if(kind==="edit"){ const key=f.dataset.v; S.edit[key]=f.elements.t.value.trim(); S.editing[key]=false; document.activeElement.blur(); render(); toast("Comment updated."); }
   if(kind==="ask"){ const key=f.dataset.v, q=f.elements.q.value.trim(); if(!q) return f.elements.q.focus(); const p=pr(), fd=p.findings.find(x=>p.id+x.id===key);
     (S.asks[key]=S.asks[key]||[]).push({q,a:`Sample answer: ${fd.impact} ${fd.proof}`}); S.asking[key]=false; document.activeElement.blur(); render(); }
+  if(kind==="link"){ const r=parseLink($("linkIn").value); if(!r||r.err) return $("linkIn").focus(); closeDlg();
+    if(r.existing) return openReview(r.existing.id);
+    if(!PROJECTS[r.repo]) PROJECTS[r.repo]={docs:[],rules:[],std:[]};
+    const p=linkedSample(r); PRS.unshift(p); startRun(p); openReview(p.id); return; }
   if(kind==="rule"){ const t=f.elements.t.value.trim(); if(!t) return f.elements.t.focus(); PROJECTS[S.project].rules.push(t); render(); const inp=$("main").querySelector('form[data-form="rule"] input'); if(inp) inp.focus(); }
 });
 document.addEventListener("input",e=>{
   if(e.target.id==="palInput"){S.palIdx=0;renderPal(e.target.value)}
   if(e.target.id==="q"){S.q=e.target.value;$("homeList").innerHTML=homeList()}
+  if(e.target.id==="stdQ"){S.pick.q=e.target.value;renderPicker()}
+  if(e.target.id==="linkIn") linkInfo();
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="acctFilter"){S.acct=e.target.value;$("homeList").innerHTML=homeList()}
   if(e.target.id==="filePick"){addFiles(e.target.files);e.target.value=""}
   if(e.target.dataset.c==="doclevel"){docById(e.target.dataset.v).level=e.target.value}
+  if(e.target.dataset.c==="stdlevel"){PROJECTS[S.project].std.find(x=>x.id===e.target.dataset.v).level=e.target.value}
+  if(e.target.dataset.c==="stdpick"){const id=e.target.value; e.target.checked?S.pick.sel.add(id):S.pick.sel.delete(id); pickerCount()}
 });
 document.addEventListener("focusout",()=>{setTimeout(()=>{const ae=document.activeElement; if(S.dirty&&!(ae&&/INPUT|TEXTAREA/.test(ae.tagName))&&!$("dlg").open) render()},0)});
 document.addEventListener("dragover",e=>e.preventDefault());

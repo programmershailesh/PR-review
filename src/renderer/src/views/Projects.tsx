@@ -1,7 +1,8 @@
 import { useState, type DragEvent, type FormEvent } from "react";
-import { ALL_PROJECTS, type AddFilesOutcome, type DocLevel, type GuidelineDoc, type GuidelineScope } from "../../../shared/types";
+import { ALL_PROJECTS, type AddFilesOutcome, type ComplianceChoice, type DocLevel, type GuidelineDoc, type GuidelineScope } from "../../../shared/types";
 import type { Ctx } from "../App";
-import { Switch, api, errorText, plural, shortRepo } from "../ui";
+import { IconShield, Switch, api, errorText, plural, shortRepo } from "../ui";
+import { StandardsPicker } from "./StandardsPicker";
 
 function fmtSize(b: number): string {
   if (b < 1024) return `${b} B`;
@@ -53,6 +54,8 @@ export function ProjectView({ ctx, scope }: { ctx: Ctx; scope: GuidelineScope })
   const [rule, setRule] = useState("");
   const [readySnapshot] = useState(() => new Set(state.docs.filter((d) => d.status === "ready").map((d) => d.id)));
   const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [justAdded, setJustAdded] = useState<string[]>([]);
 
   const isAll = scope === ALL_PROJECTS;
   const docs = state.docs.filter((d) => d.scope === scope);
@@ -83,8 +86,20 @@ export function ProjectView({ ctx, scope }: { ctx: Ctx; scope: GuidelineScope })
     setRule("");
     attempt(() => api().addRule(scope, text));
   };
+  const choices = state.compliance[scope] ?? [];
+  const standard = (id: string) => ctx.catalog.find((s) => s.id === id);
+  const inherited = isAll ? [] : (state.compliance[ALL_PROJECTS] ?? []).filter((c) => !choices.some((x) => x.id === c.id));
+  const saveStandards = (next: ComplianceChoice[]) => attempt(() => api().setCompliance(scope, next));
+  const removeStandard = (id: string) => {
+    const before = choices;
+    saveStandards(choices.filter((c) => c.id !== id));
+    setJustAdded((a) => a.filter((x) => x !== id));
+    toast(`Removed ${standard(id)?.name ?? id}.`, { label: "Undo", run: () => saveStandards(before) });
+  };
+
   const recheck = () => {
     setNoticeDismissed(true);
+    setJustAdded([]);
     attempt(async () => {
       for (const p of openReviews) await api().startReview(p.key);
       toast(`Reviewing ${plural(openReviews.length, "change")} again.`);
@@ -95,7 +110,63 @@ export function ProjectView({ ctx, scope }: { ctx: Ctx; scope: GuidelineScope })
     <div className="col">
       <button className="back" onClick={() => go({ view: "projects" })}>← Projects</button>
       <h1 className="page-title">{shortRepo(scope)}</h1>
-      <p className="page-sub">{isAll ? "Documents here apply to every review, in every project." : "Every review of this project is checked against these guidelines."}</p>
+      <p className="page-sub">{isAll ? "Standards and documents here apply to every review, in every project." : "Every review of this project is checked against these guidelines."}</p>
+
+      <h2 className="section-title">Compliance and standards</h2>
+      <div className="list">
+        {choices.map((c) => {
+          const s = standard(c.id);
+          return (
+            <div className="li center" key={c.id}>
+              <span className="std-badge" aria-hidden="true"><IconShield s={18} /></span>
+              <div className="li-main"><b>{s?.name ?? c.id}</b><small>{s ? `${s.version} · ${s.region}` : "No longer available in this version"}</small></div>
+              <div className="li-end">
+                <select
+                  className="mini"
+                  aria-label={`How strictly to apply ${s?.name ?? c.id}`}
+                  value={c.level}
+                  onChange={(e) => saveStandards(choices.map((x) => (x.id === c.id ? { ...x, level: e.target.value as DocLevel } : x)))}
+                >
+                  <option value="must">Must follow</option>
+                  <option value="recommended">Recommended</option>
+                </select>
+                <button className="link" aria-label={`Remove ${s?.name ?? c.id}`} onClick={() => removeStandard(c.id)}>Remove</button>
+              </div>
+            </div>
+          );
+        })}
+        <button className="li li-btn center" onClick={() => setPicking(true)}>
+          <div className="li-main">
+            <b>Add standards</b>
+            <small>{choices.length ? "Certifications, laws and security policies" : "Such as SOC 2, PCI DSS, GDPR or Content Security Policy"}</small>
+          </div>
+          <span className="c-muted">+</span>
+        </button>
+      </div>
+      {justAdded.length > 0 && openReviews.length > 0 && (
+        <div className="notice">
+          <span>New reviews will check {justAdded.map((id) => standard(id)?.shortName ?? id).join(", ")}. Check {plural(openReviews.length, "open review")} again with {justAdded.length === 1 ? "it" : "them"} too?</span>
+          <button className="btn small" onClick={recheck}>Review again</button>
+        </div>
+      )}
+      <p className="note">
+        {inherited.length ? `Also checked, from All projects: ${inherited.map((c) => standard(c.id)?.name ?? c.id).join(", ")}. ` : ""}
+        Reviews check the code against each standard's controls. This doesn't make the project compliant or replace an audit, and it uses a little more of your Claude limit.
+      </p>
+      {picking && (
+        <StandardsPicker
+          scope={scope}
+          catalog={ctx.catalog}
+          chosen={new Set(choices.map((c) => c.id))}
+          onClose={() => setPicking(false)}
+          onAdd={(ids) => {
+            setPicking(false);
+            saveStandards([...choices, ...ids.map((id) => ({ id, level: "must" as DocLevel }))]);
+            setJustAdded(ids);
+            toast(`Added ${plural(ids.length, "standard")}.`);
+          }}
+        />
+      )}
 
       <h2 className="section-title">Guideline documents</h2>
       <div

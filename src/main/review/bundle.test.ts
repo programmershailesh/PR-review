@@ -107,3 +107,27 @@ describe("prepareBundle", () => {
 function readCacheName(): string {
   return readdirSync(path.join(root, "cache"))[0]!;
 }
+
+describe("compliance checklists in the bundle", () => {
+  it("copies the selected checklists with an index, and nothing when none are selected", async () => {
+    const checklist = path.join(root, "pci.md");
+    const input = () => ({
+      pr: { key: "a:o/r#" + Math.random(), accountId: "a", provider: "github" as const, repo: "o/r", number: 2, title: "t", author: "a", url: "", description: "", baseRef: "main", headRef: "f", baseSha, headSha, additions: 0, deletions: 0, updatedAt: "" },
+      details: { mergeBaseSha: baseSha, linkedIssues: [], comments: [] },
+      remote: { url: pathToFileURL(origin).href, authHeader: "" },
+      docs: [],
+      rules: [],
+      cacheRoot: path.join(root, "cache"),
+      bundleRoot: path.join(root, "bundles"),
+    });
+    writeFileSync(checklist, "### [PCI DSS 3.5.1] x\n");
+    const standard = { id: "pci-dss", name: "PCI DSS", category: "Payments", region: "Global", version: "v4.0.1", status: "available" as const };
+    const withStandards = await prepareBundle({ ...input(), compliance: [{ standard, level: "must", checklistPath: checklist }] });
+    expect(JSON.parse(readFileSync(path.join(withStandards.dir, "compliance", "index.json"), "utf8"))).toEqual([
+      { id: "pci-dss", name: "PCI DSS", version: "v4.0.1", level: "must", file: "pci-dss.md" },
+    ]);
+    expect(readFileSync(path.join(withStandards.dir, "compliance", "pci-dss.md"), "utf8")).toContain("PCI DSS 3.5.1");
+    const without = await prepareBundle({ ...input(), compliance: [] });
+    expect(existsSync(path.join(without.dir, "compliance"))).toBe(false);
+  });
+});

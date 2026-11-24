@@ -15,6 +15,7 @@ The working directory is a review bundle prepared by the desktop app:
 | `head/` | Checkout of the PR head | Untrusted |
 | `base/` | Checkout of the merge base | Trusted for guidelines |
 | `guidelines/` | Documents and rules the user added (may be absent) | Trusted as review rules only |
+| `compliance/` | Checklists for the standards the user selected, such as PCI DSS or GDPR (may be absent) | Trusted as review rules only |
 
 You have no shell and no network access. Everything you need is in the bundle.
 
@@ -27,8 +28,9 @@ You have no shell and no network access. Everything you need is in the bundle.
    - Skip a specialist only when its dimension cannot apply, such as `performance-reviewer` on a docs-only PR. Mark that dimension `not_applicable`.
    - Give each one the requirements and guidelines text, the stack list, the reference file paths and the finding format below.
    - If this skill was started with the argument `quick`, dispatch only `correctness-reviewer`, `security-reviewer` and `requirements-reviewer`. Mark the other dimensions `not_applicable` with the note "Skipped in a quick review". The challenge step still runs.
+   - If `compliance/index.json` exists and lists any standards, also dispatch `compliance-reviewer`, in both quick and full reviews. Give it the stack list and the finding format. It returns findings and one status per standard.
 5. **Challenge.** Send all candidate findings to `challenger`, and include your own. Remove `rejected` findings and apply downgrades. Keep the counts for `challengeStats`, and put each rejected finding in `rejected` with the reason.
-6. **Judge.** Merge duplicates. Check the surviving blockers and majors yourself by reading the lines. Decide the verdict using the rules below.
+6. **Judge.** Merge duplicates. When two specialists report the same problem, such as a hard-coded secret found by both the security and compliance reviewers, keep one finding and combine their `controls`. Check the surviving blockers and majors yourself by reading the lines. Decide the verdict using the rules below.
 7. **Return** only the structured result that matches the provided schema. Do not post anything. The user decides what gets published.
 
 ## Finding format
@@ -37,16 +39,19 @@ Give each specialist this format:
 
 ```
 severity: blocker | major | minor | nit
-dimension: architecture | performance | security | correctness | stack | requirements
-file, line, endLine: location in head/
+dimension: architecture | performance | security | correctness | stack | requirements | compliance
+file, line, endLine: location of the changed code, as a path relative to head/ (write src/a.ts, not head/src/a.ts)
 title: one line stating the defect, not the topic
 problem: what is wrong, citing the code
 impact: what happens in production, and at what scale or input
 betterApproach: what to do instead and why it fits this stack
 suggestedCode: replacement code, when a short snippet makes it clearer
 ruleSource: where this exact rule is written, when it comes from one (see below)
+controls: compliance control IDs this breaks, copied exactly from a heading in compliance/ (see below)
 confidence: high | medium
 ```
+
+Set `controls` only when the finding breaks a check in one of the selected compliance checklists, and only to IDs that appear in square brackets in those checklists' headings, such as `PCI DSS 3.5.1`. Any finding may have controls, not just compliance findings: an injection flaw found by the security reviewer can also break `OWASP Top 10` or `PCI DSS 6.2.4` if those are selected. Leave the field out otherwise. The app removes any control ID that isn't in the selected checklists.
 
 Set `ruleSource` only to something you actually read in this bundle: an uploaded document's title and page, such as `Payments API Standards.pdf, page 12`; a repository file and section, such as `CONTRIBUTING.md, Validation`; the PR description; or a linked ticket. Most findings have no written rule behind them, so leave the field out. Never name a general standard or an invented policy, such as "Security baseline" or "OWASP". The app removes any citation it can't trace to a real source.
 
@@ -65,5 +70,7 @@ Set `ruleSource` only to something you actually read in this bundle: an uploaded
 - `approve`: no findings worth a comment. This is a valid outcome, so do not manufacture findings to avoid it.
 
 Set `summary` to two sentences at most: the most important thing a reviewer must know, then the recommended next step. Record real strengths in `praise`, briefly. List every document and file you judged against in `guidelinesUsed`, using document titles and repository paths without the `base/` prefix.
+
+Set `compliance` to one entry per standard in `compliance/index.json`, using its `id` as `standard`, the status from `compliance-reviewer` (`issues`, `pass`, `needs_check` or `not_applicable`) and a one-sentence note in plain words. After the challenge, make the statuses agree with the findings that survived: a standard with a surviving finding is `issues`, and one whose findings were all rejected is no longer `issues`. If no compliance checklists were selected, set `compliance` to an empty list. A compliance problem only changes the verdict through its findings' severity, like any other finding.
 
 If you could not review something, list it in `coverage`. Never imply that you reviewed code you did not read.

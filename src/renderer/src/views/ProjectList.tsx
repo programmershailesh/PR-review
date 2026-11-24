@@ -28,9 +28,10 @@ export function ProjectsView({ ctx }: { ctx: Ctx }) {
   const waiting = (repo: string) => prs.filter((p) => p.repo === repo && (reviews[p.key]?.state === "queued" || reviews[p.key]?.state === "running")).length;
   const openCount = (repo: string) => prs.filter((p) => p.repo === repo && reviews[p.key]?.state !== "sent").length;
   const guideLabel = (repo: string) => {
+    const s = state.compliance[repo]?.length ?? 0;
     const n = docs.filter((d) => d.scope === repo).length;
     const m = rules[repo]?.length ?? 0;
-    return [n ? plural(n, "document") : "", m ? plural(m, "rule") : ""].filter(Boolean).join(", ");
+    return [s ? plural(s, "standard") : "", n ? plural(n, "document") : "", m ? plural(m, "rule") : ""].filter(Boolean).join(", ");
   };
   const stackOf = (repo: string): string => {
     for (const p of prs) {

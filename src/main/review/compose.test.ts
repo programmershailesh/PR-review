@@ -48,3 +48,10 @@ describe("composeReview", () => {
     expect(out.comments[0]!.body).toBe("My words");
   });
 });
+
+describe("controls in posted comments", () => {
+  it("names the controls a finding breaks", () => {
+    const out = composeReview(result([finding({ line: 2, controls: ["PCI DSS 3.5.1", "GDPR Art. 32"] })]), {}, DIFF, "comment");
+    expect(out.comments[0]!.body).toContain("Related controls: PCI DSS 3.5.1, GDPR Art. 32");
+  });
+});

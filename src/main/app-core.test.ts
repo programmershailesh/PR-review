@@ -2,14 +2,15 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PullRequest, ReviewResult } from "../shared/types";
+import { ALL_PROJECTS, type PullRequest, type ReviewResult } from "../shared/types";
 import { AppCore } from "./app-core";
-import type { GitProvider, ReviewSubmission } from "./providers/types";
+import { ProviderError, type GitProvider, type ReviewSubmission } from "./providers/types";
 import { Store } from "./store";
 
 const mocks = vi.hoisted(() => ({
   claudeOk: true,
   runReview: vi.fn(),
+  bundleInputs: [] as Record<string, unknown>[],
 }));
 vi.mock("./claude/auth", () => ({
   checkClaude: async () => (mocks.claudeOk ? { ok: true, found: true, subscriptionType: "max" } : { ok: false, found: true, message: "Not signed in." }),
@@ -17,7 +18,7 @@ vi.mock("./claude/auth", () => ({
 vi.mock("./claude/find", () => ({ findClaude: () => ({ command: "claude", prefixArgs: [] }) }));
 vi.mock("./claude/runner", () => ({ runReview: mocks.runReview }));
 vi.mock("./review/bundle", () => ({
-  prepareBundle: async () => ({ dir: "bundle", diff: "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-a\n+b\n" }),
+  prepareBundle: async (input: Record<string, unknown>) => (mocks.bundleInputs.push(input), { dir: "bundle", diff: "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-a\n+b\n" }),
   removeBundle: async () => undefined,
 }));
 
@@ -26,13 +27,16 @@ const pr = (n: number, sha = "sha1"): PullRequest => ({
   key: `acct:o/r#${n}`, accountId: "acct", provider: "github", repo: "o/r", number: n, title: `PR ${n}`, author: "a", url: "", description: "",
   baseRef: "main", headRef: "f", baseSha: "b", headSha: sha, additions: 0, deletions: 0, updatedAt: "",
 });
-const flush = () => new Promise((r) => setTimeout(r, 15));
+// Each run includes real disk writes, which can take a while when the whole suite runs in parallel.
+const flush = () => new Promise((r) => setTimeout(r, 60));
 
 let dir: string;
 let assigned: PullRequest[];
 let listError: Error | undefined;
 let submitError: Error | undefined;
 let submitted: ReviewSubmission[];
+let lookup: PullRequest[];
+let lookupError: Error | undefined;
 let core: AppCore;
 let store: Store;
 
@@ -42,6 +46,9 @@ beforeEach(() => {
   listError = undefined;
   submitError = undefined;
   submitted = [];
+  lookup = [];
+  lookupError = undefined;
+  mocks.bundleInputs = [];
   mocks.claudeOk = true;
   mocks.runReview.mockReset();
   mocks.runReview.mockResolvedValue(result);
@@ -55,6 +62,12 @@ beforeEach(() => {
       return assigned;
     },
     listRepositories: async () => [{ accountId: "acct", name: "o/idle", isPrivate: false }],
+    getPullRequest: async (repo, number) => {
+      if (lookupError) throw lookupError;
+      const found = lookup.find((p) => p.repo === repo && p.number === number);
+      if (!found) throw new ProviderError("GitHub denied access.", 404);
+      return found;
+    },
     getDetails: async () => ({ mergeBaseSha: "b", linkedIssues: [], comments: [] }),
     submitReview: async (_p, r) => {
       if (submitError) throw submitError;
@@ -65,7 +78,7 @@ beforeEach(() => {
   core = new AppCore({
     store,
     userData: dir,
-    enginePath: "engine",
+    enginePath: path.resolve(__dirname, "../../review-engine"),
     encrypt: (t) => `enc:${t}`,
     decrypt: (b) => b.replace("enc:", ""),
     notify: () => undefined,
@@ -392,5 +405,148 @@ describe("guidelines", () => {
   it("never exposes tokens to the UI", async () => {
     await core.start();
     expect(JSON.stringify(core.state())).not.toContain("token");
+  });
+});
+
+const merged = (n: number, sha = "m1"): PullRequest => ({ ...pr(n, sha), key: `acct:o/r#${n}`, status: "merged" });
+
+describe("review by link", () => {
+  it("adds a merged PR, reviews it next, and keeps it when refreshes don't list it", async () => {
+    lookup = [merged(70)];
+    await core.start();
+    await flush();
+    const key = await core.addByLink("https://github.com/o/r/pull/70/files");
+    expect(key).toBe("acct:o/r#70");
+    await flush();
+    expect(core.state().prs.find((p) => p.key === key)).toMatchObject({ addedByLink: true, status: "merged" });
+    expect(core.state().reviews[key]).toMatchObject({ state: "ready", manual: true });
+    await core.refresh();
+    expect(core.state().prs.some((p) => p.key === key)).toBe(true);
+  });
+
+  it("explains links it can't use, and adds nothing", async () => {
+    await expect(core.addByLink("not a link")).rejects.toThrow(/Paste the full link/);
+    await expect(core.addByLink("https://github.com/o/r/issues/3")).rejects.toThrow(/doesn't look like/);
+    await expect(core.addByLink("https://git.example.com/o/r/pull/1")).rejects.toThrow(/No account for git.example.com/);
+    await expect(core.addByLink("https://github.com/o/r/-/merge_requests/1")).rejects.toThrow(/connected as GitHub, but this is a GitLab link/);
+    await expect(core.addByLink("https://bitbucket.org/o/r/pull-requests/1")).rejects.toThrow(/Bitbucket/);
+    await expect(core.addByLink("https://github.com/o/r/pull/404")).rejects.toThrow(/Couldn't open o\/r #404/);
+    lookupError = new Error("Couldn't reach github.com.");
+    await expect(core.addByLink("https://github.com/o/r/pull/5")).rejects.toThrow(/Couldn't reach/);
+    expect(core.state().prs.filter((p) => p.addedByLink)).toEqual([]);
+  });
+
+  it("opens a PR that's already in the list instead of adding it twice", async () => {
+    await core.start();
+    await flush();
+    lookup = [pr(1)];
+    const key = await core.addByLink("github.com/o/r/pull/1");
+    expect(key).toBe(pr(1).key);
+    expect(core.state().prs.filter((p) => p.key === key)).toHaveLength(1);
+    expect(mocks.runReview).toHaveBeenCalledTimes(1);
+  });
+
+  it("fetches the latest commit before reviewing a linked PR again", async () => {
+    lookup = [{ ...pr(9, "old"), status: "open" }];
+    await core.start();
+    const key = await core.addByLink("https://github.com/o/r/pull/9");
+    await flush();
+    lookup = [{ ...pr(9, "new"), status: "merged" }];
+    await core.startReview(key);
+    await flush();
+    expect(core.state().prs.find((p) => p.key === key)).toMatchObject({ headSha: "new", status: "merged", addedByLink: true });
+    expect(core.state().reviews[key]?.headSha).toBe("new");
+  });
+
+  it("only sends comments to a merged PR", async () => {
+    lookup = [merged(70)];
+    await core.start();
+    const key = await core.addByLink("https://github.com/o/r/pull/70");
+    await flush();
+    await expect(core.sendReview(key, "approve")).rejects.toThrow(/already merged, so it can only get comments/);
+    await expect(core.sendReview(key, "request_changes")).rejects.toThrow(/only get comments/);
+    expect(submitted).toEqual([]);
+    await core.sendReview(key, "comment");
+    expect(submitted).toHaveLength(1);
+  });
+
+  it("removes only PRs that were added by link", async () => {
+    lookup = [merged(70)];
+    await core.start();
+    await flush();
+    const key = await core.addByLink("https://github.com/o/r/pull/70");
+    await flush();
+    await expect(core.removeLinked(pr(1).key)).rejects.toThrow(/Only changes added by link/);
+    await core.removeLinked(key);
+    expect(core.state().prs.some((p) => p.key === key)).toBe(false);
+    expect(core.state().reviews[key]).toBeUndefined();
+  });
+
+  it("keeps the link flag when a linked PR also becomes assigned, and after it stops", async () => {
+    lookup = [pr(3)];
+    await core.start();
+    const key = await core.addByLink("https://github.com/o/r/pull/3");
+    assigned = [pr(1), pr(3)];
+    await core.refresh();
+    expect(core.state().prs.find((p) => p.key === key)?.addedByLink).toBe(true);
+    assigned = [pr(1)];
+    await core.refresh();
+    expect(core.state().prs.some((p) => p.key === key)).toBe(true);
+  });
+});
+
+describe("compliance standards", () => {
+  it("lists available and planned standards from the shipped catalogue", () => {
+    const catalog = core.getComplianceCatalog();
+    expect(catalog.filter((s) => s.status === "available").length).toBeGreaterThanOrEqual(2);
+    expect(catalog.some((s) => s.status === "planned")).toBe(true);
+  });
+
+  it("refuses standards that don't exist or aren't available yet", () => {
+    expect(() => core.setCompliance("o/r", [{ id: "made-up", level: "must" }])).toThrow(/isn't available/);
+    expect(() => core.setCompliance("o/r", [{ id: "nis2", level: "must" }])).toThrow(/isn't available/);
+    expect(core.state().compliance).toEqual({});
+  });
+
+  it("checks the project's standards plus all-project ones, with the project's level winning", async () => {
+    core.setCompliance(ALL_PROJECTS, [{ id: "pci-dss", level: "recommended" }, { id: "csp", level: "must" }]);
+    core.setCompliance("o/r", [{ id: "pci-dss", level: "must" }, { id: "pci-dss", level: "recommended" }]);
+    expect(core.state().compliance["o/r"]).toEqual([{ id: "pci-dss", level: "must" }]);
+    await core.start();
+    await flush();
+    const sent = mocks.bundleInputs[0]?.compliance as { standard: { id: string }; level: string; checklistPath: string }[];
+    expect(sent.map((s) => [s.standard.id, s.level])).toEqual([["pci-dss", "must"], ["csp", "must"]]);
+    expect(sent[0]!.checklistPath).toMatch(/compliance[\\/]pci-dss\.md$/);
+  });
+
+  it("removes made-up control IDs and reports every selected standard", async () => {
+    core.setCompliance("o/r", [{ id: "pci-dss", level: "must" }, { id: "csp", level: "must" }]);
+    mocks.runReview.mockResolvedValue({
+      ...result,
+      findings: [
+        { ...result.findings[0], controls: ["pci dss 3.5.1", "PCI DSS 99.9", "GDPR Art. 32"] },
+        { ...result.findings[0], title: "second", controls: ["Made up 1"] },
+      ],
+      compliance: [{ standard: "pci-dss", status: "pass", note: "Looked fine." }, { standard: "gdpr", status: "issues", note: "Not selected." }],
+    });
+    await core.start();
+    await flush();
+    const r = core.state().reviews[pr(1).key]!.result!;
+    expect(r.findings[0]!.controls).toEqual(["PCI DSS 3.5.1"]);
+    expect(r.findings[1]).not.toHaveProperty("controls");
+    expect(r.compliance).toEqual([
+      { standard: "pci-dss", status: "issues", note: "Issues were found. See the issues that list its controls." },
+      { standard: "csp", status: "needs_check", note: "The reviewer didn't report on this standard, so check it yourself." },
+    ]);
+  });
+
+  it("strips controls when no standards are selected", async () => {
+    mocks.runReview.mockResolvedValue({ ...result, findings: [{ ...result.findings[0], controls: ["PCI DSS 3.5.1"] }] });
+    await core.start();
+    await flush();
+    const r = core.state().reviews[pr(1).key]!.result!;
+    expect(r.findings[0]).not.toHaveProperty("controls");
+    expect(r.compliance).toEqual([]);
+    expect(mocks.bundleInputs[0]?.compliance).toEqual([]);
   });
 });

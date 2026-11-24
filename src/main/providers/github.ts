@@ -17,6 +17,8 @@ export function apiBase(host: string): string {
 
 interface PullJson {
   number: number;
+  state?: "open" | "closed";
+  merged_at?: string | null;
   title: string;
   body: string | null;
   html_url: string;
@@ -111,6 +113,10 @@ export class GitHubProvider implements GitProvider {
     return repos;
   }
 
+  async getPullRequest(repo: string, number: number, accountId: string): Promise<PullRequest> {
+    return this.toPullRequest(await this.request<PullJson>(`/repos/${repo}/pulls/${number}`), accountId);
+  }
+
   private toPullRequest(p: PullJson, accountId: string): PullRequest {
     const repo = p.base.repo.full_name;
     return {
@@ -130,6 +136,7 @@ export class GitHubProvider implements GitProvider {
       additions: p.additions,
       deletions: p.deletions,
       updatedAt: p.updated_at,
+      status: p.merged_at ? "merged" : p.state === "closed" ? "closed" : "open",
     };
   }
 

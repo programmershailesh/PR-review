@@ -212,6 +212,15 @@ function registerIpc(): void {
   handle("setProjectEnabled", z.tuple([scope, z.boolean()]), (repo, enabled) => core.setProjectEnabled(repo, enabled));
   handle("setProjectOrder", z.tuple([z.array(scope).max(5000)]), (repos) => core.setProjectOrder(repos));
   handle("refreshRepositories", none, () => core.refreshRepositories());
+  handle("getComplianceCatalog", none, () => core.getComplianceCatalog());
+  handle(
+    "setCompliance",
+    z.tuple([scope, z.array(z.object({ id: z.string().regex(/^[a-z0-9-]{1,60}$/), level: z.enum(["must", "recommended"]) })).max(100)]),
+    (s, choices) => core.setCompliance(s, choices),
+  );
+  // A link is only parsed, never opened or fetched as given: the app calls the provider's API itself.
+  handle("addByLink", z.tuple([z.string().min(1).max(2000)]), (url) => core.addByLink(url));
+  handle("removeLinked", z.tuple([prKey]), (k) => core.removeLinked(k));
   handle("openExternal", z.tuple([str]), async (url) => {
     // Only web links. A malicious PR must not be able to open arbitrary protocols.
     if (new URL(url).protocol !== "https:") throw new Error("Only https links can be opened.");

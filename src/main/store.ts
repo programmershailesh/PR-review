@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { Account, GuidelineDoc, GuidelineScope, PullRequest, RepoInfo, ReviewRecord, Settings } from "../shared/types";
+import type { Account, ComplianceChoice, GuidelineDoc, GuidelineScope, PullRequest, RepoInfo, ReviewRecord, Settings } from "../shared/types";
 
 /** What is saved between runs. Tokens are stored encrypted, and never reach the UI. */
 export interface PersistedData {
@@ -13,6 +13,7 @@ export interface PersistedData {
   rules: Record<GuidelineScope, string[]>;
   settings: Settings;
   projects: Record<string, { enabled: boolean }>;
+  compliance: Record<GuidelineScope, ComplianceChoice[]>;
   projectOrder: string[];
   repositories: RepoInfo[];
   /** When each account's repository list was last fetched. */
@@ -32,6 +33,7 @@ function empty(): PersistedData {
     rules: {},
     settings: { ...DEFAULT_SETTINGS },
     projects: {},
+    compliance: {},
     projectOrder: [],
     repositories: [],
     repositoriesAt: {},

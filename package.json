@@ -1,7 +1,7 @@
 {
   "name": "code-reviewer",
   "productName": "Code Reviewer",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Desktop app that reviews assigned pull requests using your own Claude Code login.",
   "private": true,
   "main": "out/main/index.js",
