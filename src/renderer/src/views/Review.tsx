@@ -258,7 +258,9 @@ function Snippet({ finding, diff }: { finding: Finding; diff: DiffFile[] }) {
   const lines = (file?.hunks ?? [])
     .flatMap((h) => h.lines)
     .filter((l) => l.newLine !== undefined && l.newLine >= finding.line - 1 && l.newLine <= finding.line + 2);
-  while (lines.length && !lines[lines.length - 1]!.text.trim()) lines.pop();
+  // Blank lines around the flagged line add nothing, but the flagged line itself always stays.
+  while (lines.length && !lines[lines.length - 1]!.text.trim() && lines[lines.length - 1]!.newLine !== finding.line) lines.pop();
+  while (lines.length && !lines[0]!.text.trim() && lines[0]!.newLine !== finding.line) lines.shift();
   return (
     <>
       <div className="issue-file">{finding.file}, line {finding.line}</div>
