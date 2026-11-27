@@ -11,7 +11,7 @@ const standard = z.object({
   region: z.string().min(1),
   version: z.string().optional(),
   sourceUrl: z.string().url().startsWith("https://").optional(),
-  lastReviewed: z.string().optional(),
+  lastReviewed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   summary: z.string().optional(),
   status: z.enum(["available", "planned"]),
 });
@@ -52,7 +52,7 @@ export function loadCatalog(enginePath: string): Catalog {
     if (ids.has(s.id)) throw new Error(`The standard "${s.id}" is listed twice.`);
     ids.add(s.id);
     if (s.status !== "available") continue;
-    if (!s.shortName || !s.version || !s.sourceUrl || !s.summary) throw new Error(`The standard "${s.id}" is missing details.`);
+    if (!s.shortName || !s.version || !s.sourceUrl || !s.lastReviewed || !s.summary) throw new Error(`The standard "${s.id}" is missing details.`);
     const list = parseControls(readFileSync(path.join(dir, `${s.id}.md`), "utf8"));
     if (!list.length) throw new Error(`The checklist for "${s.id}" has no checks.`);
     controls.set(s.id, list);

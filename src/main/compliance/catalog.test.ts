@@ -21,11 +21,19 @@ describe("shipped catalogue and checklists", () => {
   const catalog = loadCatalog(ENGINE);
   const available = catalog.standards.filter((s) => s.status === "available");
 
-  it("has the 15 first-release standards, each with a checklist", () => {
-    expect(available.map((s) => s.id).sort()).toEqual(
-      ["ccpa", "csp", "dpdp", "gdpr", "hipaa", "iso27001", "owasp-api", "owasp-asvs", "owasp-llm", "owasp-top10", "pci-dss", "slsa", "soc2", "ssdf", "wcag"],
-    );
-    for (const s of available) expect(catalog.controls.get(s.id)?.length, s.id).toBeGreaterThanOrEqual(5);
+  it("has every catalogued standard available, each with a checklist of at least 10 checks", () => {
+    expect(available.map((s) => s.id).sort()).toEqual([
+      "ada-title-2", "appi", "ccpa", "cfr-part-11", "cis-controls", "cjis", "cmmc", "coppa", "cra", "csa-star", "csp", "cwe-top25",
+      "cyber-essentials", "dora", "dpdp", "eaa", "essential-eight", "eu-ai-act", "fedramp", "ferpa", "fips-140", "gdpr", "glba",
+      "hipaa", "hitrust", "iec-62304", "iec62443", "iso21434", "iso26262", "iso27001", "iso42001", "lgpd", "misra-c", "nis2",
+      "nist-800-53", "nist-ai-rmf", "nist-csf", "owasp-api", "owasp-asvs", "owasp-llm", "owasp-masvs", "owasp-top10", "pci-dss",
+      "pci-sss", "pdpa-sg", "pipeda", "psd2", "section-508", "sei-cert", "slsa", "soc2", "sox", "ssdf", "swift-csp", "wcag",
+    ]);
+    for (const s of available) expect(catalog.controls.get(s.id)?.length, s.id).toBeGreaterThanOrEqual(10);
+  });
+
+  it("records when each standard was last checked against its source", () => {
+    for (const s of available) expect(s.lastReviewed, s.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it("has no checklist files without a catalogue entry", () => {
@@ -62,9 +70,7 @@ describe("shipped catalogue and checklists", () => {
     expect(catalog.controls.get("wcag")?.some((c) => /4\.1\.1\b/.test(c))).toBe(false);
   });
 
-  it("lists planned standards without claiming they can be checked", () => {
-    const planned = catalog.standards.filter((s) => s.status === "planned");
-    expect(planned.length).toBeGreaterThanOrEqual(35);
-    for (const s of planned) expect(catalog.controls.has(s.id)).toBe(false);
+  it("never claims a planned standard can be checked", () => {
+    for (const s of catalog.standards.filter((x) => x.status === "planned")) expect(catalog.controls.has(s.id)).toBe(false);
   });
 });

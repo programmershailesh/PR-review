@@ -496,15 +496,14 @@ describe("review by link", () => {
 });
 
 describe("compliance standards", () => {
-  it("lists available and planned standards from the shipped catalogue", () => {
+  it("lists the standards from the shipped catalogue", () => {
     const catalog = core.getComplianceCatalog();
     expect(catalog.filter((s) => s.status === "available").length).toBeGreaterThanOrEqual(2);
-    expect(catalog.some((s) => s.status === "planned")).toBe(true);
+    expect(catalog.some((s) => s.id === "nis2" && s.status === "available")).toBe(true);
   });
 
-  it("refuses standards that don't exist or aren't available yet", () => {
+  it("refuses standards that don't exist", () => {
     expect(() => core.setCompliance("o/r", [{ id: "made-up", level: "must" }])).toThrow(/isn't available/);
-    expect(() => core.setCompliance("o/r", [{ id: "nis2", level: "must" }])).toThrow(/isn't available/);
     expect(core.state().compliance).toEqual({});
   });
 
