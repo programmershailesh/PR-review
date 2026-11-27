@@ -1,6 +1,6 @@
 # MISRA C:2012 and MISRA C:2023: code review checklist
 
-Source: MISRA C:2012, Guidelines for the use of the C language in critical systems, with Amendments 1 to 4, and MISRA C:2023, which combines them, published by MISRA, https://misra.org.uk/misra-c/. The guidelines are copyrighted by MISRA and are sold by MISRA, so the checks below do not repeat their wording. Each check describes the risk and what to look for in our own words, and cites only the rule or directive number (a directive is written Dir, a rule is written Rule). Check the numbers and exact requirements against your licensed copy.
+Source: MISRA C:2012, Guidelines for the use of the C language in critical systems, with Amendments 1 to 4, and MISRA C:2023, which combines them, published by MISRA, https://misra.org.uk/misra-c/. The guidelines are copyrighted by MISRA and are sold by MISRA, so the checks below do not repeat their wording. Each check describes the risk and what to look for in our own words, and cites only the rule or directive number (a directive is written Dir, a rule is written Rule). The numbers and their topics were checked against static analyser documentation (MathWorks), not the MISRA text. MISRA has since published MISRA C:2025, which this checklist has not been checked against. Check the numbers and exact requirements against your licensed copy.
 
 MISRA C is a coding standard for C in safety-critical and embedded software. Many guidelines can be checked by a tool, so a reviewer's main value is to spot patterns and deviations a tool would flag, and to ask for a recorded deviation where a guideline is knowingly broken. Only a selection of guidelines is listed here.
 
@@ -33,7 +33,7 @@ Look for: signed integer overflow, shifts by an out-of-range amount, use of a va
 Decided from code: partly. Some undefined behaviour needs data-flow analysis.
 
 ### [MISRA C Rule 2.1] There is no code that can never run
-Look for: statements after `return`, `break` or `goto`, branches whose condition is always true or false by construction, and code left over after a change.
+Look for: statements after `return`, `break` or `goto`, functions or blocks that no path can reach, and unreachable code left over after a change.
 Decided from code: yes.
 
 ### [MISRA C Rule 8.4] Functions and objects with external linkage have a matching declaration in scope
@@ -41,7 +41,7 @@ Look for: a new non-static function or global defined with no prior declaration 
 Decided from code: yes.
 
 ### [MISRA C Rule 9.1] Variables are set before they are read
-Look for: automatic variables read on some path before any assignment, partial initialisation of structures or arrays, and variables set only in some branches.
+Look for: automatic variables read on some path before any assignment, structure members or array elements read before they are given a value, and variables set only in some branches.
 Decided from code: partly. Complex paths may need a tool.
 
 ### [MISRA C Rule 11.3] Pointers to one object type are not converted to another object type
@@ -60,8 +60,8 @@ Decided from code: yes.
 Look for: chains of `else if` with no final `else` and no comment or defensive action for the case where none matches.
 Decided from code: yes.
 
-### [MISRA C Rule 16.3] Each `switch` clause ends in a way that doesn't fall through by accident
-Look for: `case` labels that run into the next one, with no `break`, `return`, or other clear end, and no recorded reason.
+### [MISRA C Rule 16.3] Each `switch` clause ends with an unconditional `break`
+Look for: clauses that fall into the next one, end only with a conditional `break`, or end some other way such as `return`, with no recorded deviation. Consecutive `case` labels with no statements between them are not a breach.
 Decided from code: yes.
 
 ### [MISRA C Rule 16.4] Every `switch` has a `default` clause
@@ -85,5 +85,5 @@ Look for: functions that return the address of a local variable, or store it in 
 Decided from code: yes.
 
 ### [MISRA C Rule 22.1] Resources that are acquired are released
-Look for: file handles, memory, locks or other resources obtained and not released on every path, including early returns on errors.
+Look for: memory, file streams or other resources obtained through standard library functions and not released on every path, including early returns on errors.
 Decided from code: partly. Complex paths may need a tool.

@@ -1,6 +1,6 @@
 # HITRUST CSF: code review checklist
 
-Source: HITRUST Alliance, HITRUST CSF version 11, control references numbered by category (for example 01.q), https://hitrustalliance.net/hitrust-csf. The control reference numbers come from HITRUST's published framework, which builds on ISO/IEC 27002 and maps to HIPAA, NIST and others. The checks below are written in our own words and cite control reference numbers only.
+Source: HITRUST Alliance, HITRUST CSF version 11, control references numbered by category (for example 01.q), https://hitrustalliance.net/hitrust-csf. The framework builds on ISO/IEC standards and maps to HIPAA, NIST and others. The control reference numbers and their titles were checked against public secondary sources (vendor mappings and compliance documentation), not against the licensed v11 framework text. The checks below are written in our own words and cite control reference numbers only.
 
 HITRUST CSF is a certifiable security and privacy framework, widely used for health data. A HITRUST assessment is scoped to a system and its requirement set, and the assessor decides what applies. Code review can only see the technical side of a few control references.
 

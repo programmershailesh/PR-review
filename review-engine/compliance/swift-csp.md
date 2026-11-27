@@ -1,6 +1,6 @@
 # SWIFT Customer Security Controls Framework: code review checklist
 
-Source: Swift, Customer Security Controls Framework (CSCF) v2027, part of the Customer Security Programme, https://www.swift.com/myswift/customer-security-programme-csp. The framework is published to Swift users and the full text needs a swift.com login. The checks below are written in our own words. The IDs are the framework's control numbers; a number ending in "A" is an advisory control. Swift reviews the framework every year, so confirm control numbers against the version in force.
+Source: Swift, Customer Security Controls Framework (CSCF) v2027, part of the Customer Security Programme, https://www.swift.com/myswift/customer-security-programme-csp. The framework is published to Swift users and the full text needs a swift.com login. The checks below are written in our own words. The IDs are the framework's control numbers; a number ending in "A" is an advisory control. The numbers used here were checked against secondary public summaries of the framework, not the official text. Swift reviews the framework every year, so confirm control numbers against the version in force.
 
 The framework sets security controls for the local environment that connects an institution to the Swift network: the interface, messaging software, back office link, operator PCs, jump servers and the people and credentials that use them. It is organised around three objectives: secure the environment, know and limit access, and detect and respond.
 

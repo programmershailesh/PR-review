@@ -12,17 +12,21 @@ If the change doesn't handle personal data or telephone marketing, report this s
 
 ## Checks
 
-### [PDPA s 12] The organisation's data protection policies and a contact point are available
-Look for: no way for people to reach a data protection contact from the product (for example a missing contact address or request form), and no link to a privacy policy where personal data is collected.
-Decided from code: partly. The policies themselves are documents.
+### [PDPA s 11(5)] A data protection contact is available to the public
+Look for: removal of the data protection officer's or privacy team's business contact details from the product, such as a privacy page, footer or app settings screen that no longer gives any way to reach them.
+Decided from code: partly. The contact may be published somewhere outside the repository.
+
+### [PDPA s 12] People can raise complaints and get information about data protection practices
+Look for: a privacy complaint or enquiry form, address or link that is removed or broken, and no way from the product to find or ask for the data protection policy where personal data is collected.
+Decided from code: partly. The policies and the complaint process themselves are outside the code.
 
 ### [PDPA s 13] Consent is obtained before collection, use or disclosure that needs it
-Look for: personal data collected, used or shared before the person agrees. Pre-ticked boxes. Consent for a service made conditional on unrelated uses. No record of when, how and for what the consent was given.
+Look for: personal data collected, used or shared before the person agrees. Pre-ticked boxes. Consent to uses beyond what is reasonable for a product or service made a condition of getting it (also s 14). No record of when, how and for what the consent was given.
 Not a breach: processing under a legal exception in the Act, such as deemed consent or legitimate interests, if the project says so.
 Decided from code: partly. Which basis applies is a decision outside the code.
 
 ### [PDPA s 16] People can withdraw consent
-Look for: no withdrawal control, withdrawal that needs a support request, withdrawal that doesn't stop the processing or reach those who received the data.
+Look for: no withdrawal control, withdrawal that needs a support request, withdrawal that doesn't stop the processing, including by processors and agents acting for the organisation, or that never tells the person the likely consequences.
 Decided from code: yes.
 
 ### [PDPA s 18] Data is used only for purposes a reasonable person would find appropriate and the person was told about
@@ -46,7 +50,7 @@ Look for: imports or merges that overwrite verified data with unchecked data, mi
 Decided from code: partly.
 
 ### [PDPA s 24] Reasonable security arrangements protect personal data
-Look for: missing authentication or ownership checks on personal data, data stored or sent without encryption, TLS verification turned off, weak password hashing, secrets in code, personal data in logs or URLs, public storage buckets, open databases, no backups of important data.
+Look for: missing authentication or ownership checks on personal data, data stored or sent without encryption, TLS verification turned off, weak password hashing, secrets in code, personal data in logs or URLs, public storage buckets, open databases, and storage on devices or removable media that could be lost with the data readable.
 Decided from code: yes, for what the code and configuration show.
 
 ### [PDPA s 25] Data is not kept longer than needed
@@ -59,18 +63,31 @@ Look for: personal data sent to servers, vendors or SDKs outside Singapore (new 
 Decided from code: partly. The transfer mechanism is usually a contract outside the repository.
 
 ### [PDPA s 26B] Breaches that need notifying can be recognised
-Look for: removed or missing audit logs for personal data access, no way to tell which people's data an incident reached, swallowed security errors, alerting removed. Data kept encrypted so that an incident leaves it unreadable.
+Look for: removed or missing audit logs for access to personal data, swallowed security errors and removed alerting, so that unauthorised access, copying, change or loss goes unnoticed. Pay most attention to data whose exposure would cause significant harm, such as identity numbers, financial, health and account credential data, and to bulk access paths.
 Decided from code: partly. Whether a breach is notifiable depends on harm or scale.
 
 ### [PDPA s 26C] A suspected breach can be assessed quickly
-Look for: missing logs, records or inventory that would let a team find out what data, how many people and what harm, within the time the Act expects.
+Look for: missing logs, records or inventory that would let a team find out what data, how many people and what harm, promptly enough for a reasonable and expeditious assessment. A service that processes data for another organisation and has no way to tell it of a suspected breach without undue delay.
 Decided from code: partly. The assessment process is outside the repository.
 
 ### [PDPA s 26D] The PDPC and affected people can be notified
-Look for: no way to list affected people with contact details and what data was involved, notification channels hard to reach in an incident.
-Decided from code: partly. Notification is a process outside the repository.
+Look for: no way to list affected people with contact details and what data was involved, or no working way to message them. Encryption or similar protection removed, which would otherwise make significant harm unlikely and spare individual notification.
+Decided from code: partly. Notification is a process outside the repository, and the Commission must be told within three calendar days of the assessment.
 
 ### [PDPA s 43] Telephone marketing checks the Do Not Call register
-Look for: code that sends marketing calls, SMS or messaging to Singapore numbers without checking the DNC registers or the person's clear and unambiguous consent. Caller identity hidden. Bulk marketing jobs with no DNC check step.
+Look for: code that sends marketing calls, SMS or messaging to Singapore numbers with neither a recent check of the relevant DNC register nor clear and unambiguous consent that is kept on record. Bulk marketing jobs with no DNC check step, or that reuse old check results with no expiry.
 Not a breach: messages that are not marketing, such as service or transactional messages.
 Decided from code: partly. Whether a message counts as marketing depends on content.
+
+### [PDPA s 44] Marketing messages identify the sender
+Look for: marketing message templates or sending code with no clear name of the organisation behind the message and no working way to contact it.
+Not a breach: messages that are not marketing.
+Decided from code: yes, for templates in the repository.
+
+### [PDPA s 45] Marketing calls don't hide the caller's number
+Look for: dialler or telephony code that withholds, masks or suppresses the calling line identity on marketing voice calls.
+Decided from code: yes, for call settings in the repository.
+
+### [PDPA s 47] Consent to marketing messages can be withdrawn and is honoured
+Look for: no opt-out for marketing calls or messages, an opt-out that is blocked or hidden, or one that doesn't reach every sending job, list and agent. Suppression lists overwritten by imports.
+Decided from code: yes.

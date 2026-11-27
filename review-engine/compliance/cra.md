@@ -21,7 +21,7 @@ Look for: new settings whose default is the less secure choice, such as debug on
 Decided from code: yes.
 
 ### [CRA Annex I Part I (2)(c)] The product can receive security updates
-Look for: an update mechanism that is removed, broken or limited to feature updates. Automatic security updates with no default on, no opt-out, or no user notice where the product has such a mechanism. Version checks or update channels hard-coded to a dead address. Security fixes bundled with feature changes so they can't be installed alone.
+Look for: an update mechanism that is removed, broken or limited to feature updates. Where automatic security updates apply, ones that are not on by default or have no easy opt-out. No notice to users that an update is available, or no way to postpone it. Version checks or update channels hard-coded to a dead address.
 Decided from code: partly. Update delivery and policy may be handled outside the repository.
 
 ### [CRA Annex I Part I (2)(d)] Access is protected against unauthorised use
@@ -59,6 +59,10 @@ Decided from code: partly. Code shows the deletion path, but the product's inten
 ### [CRA Annex I Part II (1)] Components are identified and recorded in a software bill of materials
 Look for: build or release pipelines that stop producing a machine-readable software bill of materials (SPDX or CycloneDX), or that leave out direct dependencies. Lockfiles deleted, ignored or not committed. Vendored code and binaries with no recorded name or version.
 Decided from code: yes, for this repository.
+
+### [CRA Annex I Part II (2)] Vulnerabilities are fixed without delay, in separate security updates where feasible
+Look for: a known vulnerability in the changed area left open or only suppressed, release or update code that can ship a security fix only together with feature changes, and removal of a security-only release branch or update channel.
+Decided from code: partly. How quickly fixes ship is a matter of process outside the repository.
 
 ### [CRA Annex I Part II (3)] Security testing is regular and effective
 Look for: tests of sign-in, permissions, cryptography and input handling that are deleted, skipped or weakened. Static analysis, fuzzing or dependency scanning removed from the pipeline or set to never fail. Fixed vulnerabilities with no test that would catch them coming back.

@@ -1,6 +1,6 @@
 # SOX IT general controls: code review checklist
 
-Source: U.S. Sarbanes-Oxley Act of 2002 (sections 302, 404 and 802); PCAOB Auditing Standard AS 2201, An Audit of Internal Control Over Financial Reporting That Is Integrated with An Audit of Financial Statements, https://pcaobus.org/oversight/standards/auditing-standards/details/AS2201; ISACA COBIT 2019 Framework: Governance and Management Objectives, https://www.isaca.org/resources/cobit. The checks below are written in our own words. SOX itself has no IT control numbers. Auditors test IT general controls (ITGCs) using a framework, and most use COBIT, so the IDs below are COBIT 2019 practice numbers. Where a check rests on the Act itself, the section number is used.
+Source: U.S. Sarbanes-Oxley Act of 2002 (sections 302, 404 and 802); PCAOB Auditing Standard AS 2201, An Audit of Internal Control Over Financial Reporting That Is Integrated with An Audit of Financial Statements, https://pcaobus.org/oversight/standards/auditing-standards/details/AS2201; ISACA COBIT 2019 Framework: Governance and Management Objectives, https://www.isaca.org/resources/cobit. The checks below are written in our own words. SOX itself has no IT control numbers. Auditors test IT general controls (ITGCs) using a framework, and most use COBIT, so the IDs below are COBIT 2019 practice numbers. Where a check rests on the Act itself, the section number is used. The practice numbers were checked against public secondary sources on COBIT 2019, not against ISACA's licensed publication.
 
 SOX applies to companies that report to the U.S. SEC. Management must show that internal control over financial reporting works (section 404), and officers certify the reported numbers (section 302). The systems that produce those numbers are tested through ITGCs: who can access them, how changes are made, who can do what, and what trail is left.
 
@@ -29,7 +29,7 @@ Decided from code: yes.
 ### [SOX 802] Audit records cannot be altered or deleted by ordinary users
 Look for: audit or ledger tables that application code can update or delete, "clean up" jobs that remove audit rows or financial history with no retention rule, log settings with very short retention, and hard deletes of posted financial records instead of reversals.
 Acceptable: append-only tables, reversal entries, and retention set by policy.
-Decided from code: partly. Retention periods may be set outside the repository, so say what the code does and mark the rest for a person to check.
+Decided from code: partly. Section 802 penalises destroying or altering records to obstruct an investigation and sets record retention duties for auditors; it does not spell out these technical controls. Retention periods may be set outside the repository, so say what the code does and mark the rest for a person to check.
 
 ### [SOX BAI06.01] Changes to financial systems are reviewed and approved before release
 Look for: deployment pipelines that push to production without a reviewed pull request, branch rules that let authors merge their own code, direct pushes to the release branch, and workflows that let the author approve their own deployment.
@@ -70,6 +70,6 @@ Decided from code: partly. Whether anyone reviews the alerts is not visible in t
 Look for: databases or files holding financial records with no backup configuration, backups with no restore test, and backup jobs whose failures are ignored.
 Decided from code: partly. Backups are often managed by the platform, outside the repository.
 
-### [SOX APO10.04] Third-party components in financial systems are tracked
+### [SOX APO10.04] Risks from third-party suppliers and components in financial systems are managed
 Look for: new dependencies, SDKs or hosted services that receive financial data and are not in the lockfile or manifest, vendored copies with no version, and scripts pulled in from a CDN.
 Decided from code: yes, for this repository. Vendor reviews and service organisation reports are outside the code.

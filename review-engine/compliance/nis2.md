@@ -48,8 +48,8 @@ Decided from code: partly. Network design is often set outside the repository.
 Look for: downloads executed in builds or at start-up without a hash or signature check (`curl | sh`). Release pipelines that stop signing artefacts. Allow-lists for code or packages removed. Binaries committed with no source or version.
 Decided from code: yes, for pipelines and build files in the repository.
 
-### [NIS2 Reg. 2024/2690 6.10] Vulnerabilities can be reported and are handled openly
-Look for: removal of a security policy file (`SECURITY.md`, `security.txt`) or its contact address. Security fixes shipped with no advisory or release note, where the project publishes them. Dependency vulnerability reporting switched off.
+### [NIS2 Reg. 2024/2690 6.10] Vulnerabilities are monitored, handled and disclosed
+Look for: removal of a security policy file (`SECURITY.md`, `security.txt`) or its contact address. Security fixes shipped with no advisory or release note, where the project publishes them. Dependency vulnerability alerts or scans switched off. Known critical findings ignored or suppressed with no recorded reason.
 Decided from code: partly. Reports and disclosure decisions are handled outside the repository.
 
 ### [NIS2 Reg. 2024/2690 3.2] Security-relevant events are logged and monitored
