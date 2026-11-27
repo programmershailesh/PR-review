@@ -205,25 +205,38 @@ Pick standards for one project or for all projects, and mark each one **Must fol
 | Security and audit | SOC 2 | Access control, audit logging, encryption, secrets, change management |
 | | ISO/IEC 27001:2022 | Annex A controls such as secure coding, logging and cryptography |
 | | NIST Secure Software Development Framework (SP 800-218) | Secure development practices, dependency and secret hygiene |
+| | NIST CSF 2.0, NIST SP 800-53, CIS Controls v8.1, CSA CCM, FedRAMP | Access, logging, encryption, secure configuration, supply chain, vulnerabilities |
+| | FIPS 140-3 | Validated crypto modules, approved algorithms, random numbers, keys |
+| | CMMC 2.0, CJIS | Access control, authentication, audit logging, encryption, patching |
+| | NIS2, EU Cyber Resilience Act | Secure defaults, updates, SBOMs, vulnerability handling, MFA |
+| | Cyber Essentials, Essential Eight | Hardening, patching, admin access, MFA, backups |
 | Payments | PCI DSS v4.0.1 | Card number storage, masking, logging and encryption |
+| | PCI Secure Software Standard, SWIFT CSP | Sensitive data, payment controls, hardening, secure updates |
+| | SOX, GLBA, DORA, PSD2 | Segregation of duties, change management, audit trails, strong authentication |
 | Healthcare | HIPAA Security Rule | Access to health data, audit trails, integrity, encrypted transfer |
+| | HITRUST, FDA 21 CFR Part 11, IEC 62304 | Audit trails, electronic signatures, access control, medical software lifecycle |
 | Privacy | GDPR (and UK GDPR) | Consent, data minimisation, deletion and export, retention, personal data in logs |
 | | CCPA and CPRA | Opt-out of sale and sharing, deletion requests, sensitive data |
 | | India's Digital Personal Data Protection Act, 2023 and 2025 Rules | Consent and notice, purpose limits, erasure, breach handling |
+| | LGPD, PIPEDA, Singapore PDPA, APPI | Consent, access and correction, retention, transfers, security |
+| | COPPA, FERPA | Children's and student data: consent, access limits, disclosure |
 | Web and API security | Content Security Policy and security headers | Script sources, `unsafe-inline`, HSTS, framing, cookie flags, CORS |
 | | OWASP Top 10 (2025) | Injection, broken access control and the other top web risks |
 | | OWASP ASVS 5.0 | Detailed web and API security requirements |
 | | OWASP API Security Top 10 (2023) | Object and property authorisation, rate limits, mass assignment |
+| | OWASP MASVS, CWE Top 25 | Mobile storage and network safety, the most dangerous weaknesses |
 | Accessibility | WCAG 2.2, level AA | Alt text, labels, keyboard access, focus, target size, ARIA |
+| | European Accessibility Act, Section 508, ADA Title II | Text alternatives, keyboard access, focus, forms, platform accessibility |
 | Software supply chain | SLSA, OpenSSF Scorecard and S2C2F, CISA SBOM minimum elements | Pinned dependencies, lockfiles, CI workflow safety, build provenance, SBOMs |
 | AI | OWASP Top 10 for LLM Applications (2025) | Prompt injection, unsafe output handling, excessive agency, data leaks |
-
-**Coming next:** 40 more, listed in the app, including NIST CSF 2.0, NIST SP 800-53, FedRAMP, CMMC, NIS2, the EU Cyber Resilience Act, DORA, SOX, HITRUST, LGPD, PIPEDA, the EU AI Act, ISO/IEC 42001, Section 508, MISRA C and IEC 62443.
+| | EU AI Act, ISO/IEC 42001, NIST AI RMF | Logging, human oversight, data quality, transparency, evaluation |
+| Safety-critical | MISRA C, SEI CERT C | Undefined behaviour, pointers, memory, integers |
+| | ISO 26262, ISO/SAE 21434, IEC 62443 | Safe design and verification, secure updates, component security |
 
 **How the checks work:**
 
-- **Each standard is a checklist of 10 to 35 code-level checks**, 275 in all. Each check names the official control it comes from, such as `PCI DSS 3.5.1`, says what to look for, and says whether code alone can decide it.
-- **Every control number was checked against the official source.** Each standard records its version and source in `review-engine/compliance/catalog.json`.
+- **Each standard is a checklist of 10 to 35 code-level checks**, 917 in all, across 55 standards. Each check names the official control it comes from, such as `PCI DSS 3.5.1`, says what to look for, and says whether code alone can decide it.
+- **Control numbers come from the official source where it can be read.** Some standards are paywalled or blocked, such as HITRUST, MISRA C, IEC 62304, ISO/SAE 21434, ISO/IEC 42001, SWIFT CSCF and COBIT (used for SOX), so some of their numbers or wording rest on secondary sources. Check those against your own copy before relying on them. Each standard records its version and source in `review-engine/compliance/catalog.json`.
 - **The checklists are written in our own words.** Several standards' texts are copyrighted.
 - **Only real control numbers are kept.** A review may cite only controls from the checklists you selected, and the app removes any other control number.
 - **When code can't answer, a person checks.** If compliance depends on something outside the code, such as an identity provider setting, the standard is marked **Needs a person to check**.
